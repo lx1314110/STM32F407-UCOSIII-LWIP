@@ -1,0 +1,851 @@
+#include <includes.h>
+#include "arch/cc.h"
+#include "Snmp\snmp_SNMP.h"
+#include "Snmp\snmp_mib.h"
+#include "Config\config.h"
+
+#include "lwip/api.h"
+#include "lwip/inet.h"
+
+static const u8_t channel_status[4] = {0x01,0x02,0x04,0x08};
+static const u8_t channel_fixtime_enable[4] = {0x10,0x20,0x40,0x80};
+//-----------------------------------------------------------
+unsigned long SysTime = 0;
+u8_t sys_name[16] = {"EPMA14P-3"};
+u8_t sys_contact[16] = {"EPMA14P-3"};
+u8_t sys_location[16] = {"EPMA14P-3"};
+u8_t sys_descr[16] = {"EPMA14P-3"};
+u8_t sysObjectID[16] = {0x2b, 6, 1, 4, 1, 0x82, 0xb9, 0x6c,1};
+//u16_t fnGroudedStatus = 0;
+//u16_t fnLineorderStatus =0;
+//u16_t fnLightProStatus =0;
+//u16_t fnLanmpStatus = 0;
+//--------------------------------------------------
+
+extern AnalogPropertyTable analogPropertyTable[];
+extern DiscretePropertyTable discretePropertyTable[];
+extern CurrentAlarmTable currentAlarmTable[];
+//--------------------------------------------------
+extern u8_t 	commonNELogicalID[];
+extern u8_t 	commonNEVendor[];
+extern u8_t 	commonNEModelNumber[];
+extern u8_t 	commonNESerialNumber[];
+extern s16_t 	commonAlarmDetectionControl;
+extern u8_t 	commonNetworkAddress[]; 
+extern u16_t 	commonNetworkPort;
+extern s16_t	commonTamperStatus;	
+extern s16_t	commonInternalTemperature;
+extern u16_t	commonInternalHumidity;
+//------------------------------------------
+//extern u8_t 	fnVendorOID[];
+//extern u16_t    fnACSupplyVol;
+//extern u16_t    fnLeakage;
+//extern u16_t    fnOutputCurrent;
+//extern u16_t     fnOutputNumber;
+//extern u16_t     fnRegateNumber;
+//extern u16_t    fnRegateDelay1;
+//extern u16_t    fnRegateDelay2;
+//extern u16_t    fnRegateDelay3;
+//------------------------------------------
+//extern s16_t  fnNumberOutput;
+//extern FnACOutputSWTable fnACoutputSWTable[4];
+//extern s16_t fnDefaultRestore;
+//extern s16_t fnSavePara;
+extern s16_t fnResetDev;
+//------------------------------------------
+//extern s16_t fnSntpEn;
+//extern u8_t fnSntpServiceAddr[];
+//extern u16_t fnSntpInter;
+//-----------------------------------------------------
+extern s16_t analogPropertyNO;
+//extern s16_t currentAlarmNO;
+//extern s16_t discretePropertyNO;
+////
+//extern u16_t analogValue[3];
+////
+//extern int temp_value;
+//extern int humi_value;
+//*****************************************************************************
+//
+//! This structure instance contains the run-time set of configuration
+//! parameters for S2E module.  This is the active parameter set and may
+//! contain changes that are not to be committed to flash.
+//
+//*****************************************************************************
+extern tConfigParameters g_sParameters;
+//*****************************************************************************
+extern tConfigParameters g_sWorkingDefaultParameters;
+/*Channel Line on-off status*/
+extern unsigned char  ChannelStatus;
+//!  IP changed flag.
+extern tBoolean g_bChangeIPAddress;
+//!  device reset flag.
+extern tBoolean bReset;
+extern tBoolean ugSntp_Changed;
+// get parameters defintion.
+
+extern s16_t discreteValue[8];
+//!trap enable flag
+//extern s16_t fnTrapEn;
+////!trap addr
+//extern u8_t 	fnTrapAddr[4];
+////! trap port
+//extern u16_t 	fnTrapPort;
+////! all channel contrl ON/OFF
+//extern s16_t fnAllCHCTRL;
+////! load factory parameters.
+//extern s16_t fnLoadFactory;
+////! reset the bootload 
+//extern s16_t fnResetBoot;
+
+//---------------------
+static MIBVAR mibvar_ace[] =
+{
+    {{8,{0x2b,6,1,2,1,1,1,0}}, 0, String, 16, sys_descr},  //1.3-->1*40+3==0x2b
+    {{8,{0x2b,6,1,2,1,1,2,0}}, 0, Identifier, 9, sysObjectID},
+    {{8,{0x2b,6,1,2,1,1,3,0}}, 0, Ticks, 4, &SysTime},
+    {{8,{0x2b,6,1,2,1,1,4,0}}, W, String, 16, sys_contact},
+    {{8,{0x2b,6,1,2,1,1,5,0}}, W, String, 16, sys_name},
+    {{8,{0x2b,6,1,2,1,1,6,0}}, W, String, 16, sys_location},
+    {{8,{0x2b,6,1,2,1,1,7,0}}, IMMED, Integer, 0x4f, 0},
+    
+/* 2018-06-13 changzehai(DTT) ----------------------------------- MOD Start -*/   
+//    {{13,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,1,1,1,1}}, 0, Identifier, 15, analogPropertyTable.analogParameterOID},
+//    {{13,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,1,1,1,2}}, W+CAW, OctetString, 1, analogPropertyTable.alarmEnable},
+//    {{13,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,1,1,1,3}}, 0, Integer, 2, &analogPropertyTable.analogAlarmState},
+//    {{13,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,1,1,1,4}}, W+CAW, Integer, 2, &analogPropertyTable.analogAlarmHIHI},
+//    {{13,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,1,1,1,5}}, W+CAW, Integer, 2, &analogPropertyTable.analogAlarmHI},
+//    {{13,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,1,1,1,6}}, W+CAW, Integer, 2, &analogPropertyTable.analogAlarmLO},
+//    {{13,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,1,1,1,7}}, W+CAW, Integer, 2, &analogPropertyTable.analogAlarmLOLO},
+//    {{13,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,1,1,1,8}}, W+CAW, Integer, 2, &analogPropertyTable.analogAlarmDeadband},
+
+    /* 64个IP结点 */
+    {{13,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,1,1,1,1}}, W, String, 17, &analogPropertyTable[0].analogIp},
+    {{13,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,1,1,1,2}}, 0, Integer, 2, &analogPropertyTable[0].analogIpTableIndication},
+
+/* 2018-06-13 changzehai(DTT) ----------------------------------- MOD End   -*/
+
+/* 2018-06-13 changzehai(DTT) ----------------------------------- DEL Start -*/
+
+//    {{13,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,1,2,1,1}}, 0, Identifier, 15, discretePropertyTable[0].discreteParameterOID},
+//    {{13,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,1,2,1,2}}, CAR, Integer,  2, &discretePropertyTable[0].discreteAlarmValue},
+//    {{13,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,1,2,1,3}}, W+CAW, Integer, 2, &discretePropertyTable[0].discreteAlarmEnable},
+//    {{13,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,1,2,1,4}}, 0, Integer, 2, &discretePropertyTable[0].discreteAlarmState},
+//    
+//    {{13,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,1,3,1,1}}, 0, Identifier, 15, currentAlarmTable[0].currentAlarmOID},
+//    {{13,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,1,3,1,2}}, 0, Integer, 2, &currentAlarmTable[0].currentAlarmState},
+//    {{13,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,1,3,1,3}}, 0, Integer, 2, &currentAlarmTable[0].currentAlarmValue},
+// 
+// 
+//    
+//    {{13,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,3,1,1,0}}, W+CAW, String, 15, &commonNELogicalID},
+//    {{13,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,3,1,2,0}}, 0, String, 30, &commonNEVendor},
+//    {{13,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,3,1,3,0}}, 0, String, 30, &commonNEModelNumber},
+//    {{13,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,3,1,4,0}}, 0, String, 12, &commonNESerialNumber},
+//    {{13,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,3,1,8,0}}, W+CAW, Integer, 2, &commonAlarmDetectionControl},
+//    {{13,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,3,1,9,0}}, CAR, IpAddress, 4, &commonNetworkAddress},
+//    {{13,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,3,1,10,0}},CAR, Integer, 2, &commonNetworkPort},
+//    {{13,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,3,1,12,0}}, 0, Integer, 2, &commonTamperStatus},
+//    {{13,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,3,1,13,0}}, CAR, Integer, 2, &commonInternalTemperature},
+//    {{13,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,3,1,14,0}}, CAR, Integer, 2, &commonInternalHumidity},
+// 
+//    {{12,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,10,1,0}}, 0, Identifier, 12, fnVendorOID},
+//    {{12,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,10,2,0}}, CAR, Integer, 2, &fnACSupplyVol},
+//    {{12,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,10,3,0}}, CAR, Integer, 2, &fnLeakage},
+//    {{12,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,10,4,0}}, CAR, Integer, 2, &fnOutputCurrent},
+//    {{12,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,10,5,0}}, 0, Integer, 2, &fnOutputNumber},
+//    {{12,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,10,6,0}}, W+CAW, Integer, 2, &fnRegateNumber},
+//    {{12,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,10,7,0}}, W+CAW, Integer, 2, &fnRegateDelay1},
+//    {{12,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,10,8,0}}, W+CAW, Integer, 2, &fnRegateDelay2},
+//    {{12,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,10,9,0}}, W+CAW, Integer, 2, &fnRegateDelay3},
+//     
+//    {{13,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,10,10,1,1}}, 0, Integer, 2, &fnACoutputSWTable[0].fnACOutputSWIndex},
+//    {{13,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,10,10,1,2}}, W+CAW, Integer, 2, &fnACoutputSWTable[0].fnFixedTimeSWEnable},
+//    {{13,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,10,10,1,3}}, W+CAW, Ticks, 4, &fnACoutputSWTable[0].fnOpenFixedTick},
+//    {{13,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,10,10,1,4}}, W+CAW, Ticks, 4, &fnACoutputSWTable[0].fnCloseFixedTick},
+//    {{13,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,10,10,1,5}}, W+CAW, Integer, 2, &fnACoutputSWTable[0].fnACOutputSWEnable},
+//    {{13,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,10,10,1,6}}, CAR, Integer, 2, &fnACoutputSWTable[0].fnACOutputStatus},
+//    {{13,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,10,10,1,7}}, 0, String, 0, &fnACoutputSWTable[0].fnACChannelName},
+//    
+//    {{12,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,10,11,0}}, W+CAW, Integer, 2, &fnDefaultRestore},
+//    {{12,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,10,12,0}}, W+CAW, Integer, 2, &fnSavePara},
+//    {{12,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,10,13,0}}, W+CAW, Integer, 2, &fnResetDev},
+//    
+//    {{12,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,10,14,0}}, CAR, Integer, 2, &fnGroudedStatus},
+//    {{12,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,10,15,0}}, CAR, Integer, 2, &fnLineorderStatus},
+//    {{12,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,10,16,0}}, CAR, Integer, 2, &fnLightProStatus},
+//    {{12,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,10,17,0}}, CAR, Integer, 2, &fnLanmpStatus},
+//    
+//    {{12,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,11,1,0}}, W+CAW, Integer, 2, &fnSntpEn},
+//    {{12,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,11,2,0}}, W+CAW, IpAddress, 4, &fnSntpServiceAddr},
+//    {{12,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,11,3,0}}, W+CAW, Integer, 2, &fnSntpInter},
+//    
+//    {{12,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,12,1,0}}, W+CAW, Integer, 2, &fnTrapEn},
+//    {{12,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,12,2,0}}, W+CAW, IpAddress, 4, &fnTrapAddr},
+//    {{12,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,12,3,0}}, W+CAW, Integer, 2, &fnTrapPort},
+//    
+//    {{12,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,13,1,0}}, W+CAW, Integer, 2, &fnAllCHCTRL},
+//    {{12,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,13,2,0}}, W+CAW, Integer, 2, &fnLoadFactory},
+//    {{12,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,13,3,0}}, W+CAW, Integer, 2, &fnResetBoot}
+
+/* 2018-06-13 changzehai(DTT) ----------------------------------- DEl End   -*/ 
+};
+static s16_t mibvarsize_ace(void)
+{
+    return sizeof(mibvar_ace) / sizeof(MIBVAR);
+}
+
+static MIBTAB mibtab_ace[] =
+{
+//    {{11,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,1,1}}, 1,{XanalogParameterOID}, sizeof(AnalogPropertyTable),&analogPropertyNO},
+//    {{11,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,1,2}}, 2,{XdiscreteParameterOID,XdiscreteAlarmValue}, sizeof(DiscretePropertyTable),&discretePropertyNO},
+//    {{11,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,1,3}}, 1,{XcurrentAlarmOID}, sizeof(CurrentAlarmTable),&currentAlarmNO},
+//    
+//    {{11,{0x2b,6,1,4,1,0x82,0xb9,0x6c,1,10,10}}, 1,{XfnACoutputSWIndex}, sizeof(FnACOutputSWTable),&fnNumberOutput}
+
+};
+
+static s16_t mibtabsize_ace(void)
+{
+    return sizeof(mibtab_ace) / sizeof(MIBTAB);
+}
+
+extern u8_t SysConfigBuf[];
+static s16_t mibset_ace(s16_t varix, s16_t tabix)//可写的
+{
+//	u8_t i;
+//	u8_t strTemp [16];     
+//        u32_t temp;
+//
+//	switch(varix)
+//   	{
+///* 2018-06-13 changzehai(DTT) ----------------------------------- DEL Start -*/
+////		case XanalogAlarmHI:
+////                {   
+////                    switch(tabix)
+////                    {
+////                       case 0:
+////	                   g_sParameters.OverVoltage = analogPropertyTable[tabix].analogAlarmHI;
+////                       break;
+////                       case 1:
+////                           g_sParameters.LeakCurrent = analogPropertyTable[tabix].analogAlarmHI;
+////                       break;
+////                       case 2:
+////                           g_sParameters.OverCurrent = analogPropertyTable[tabix].analogAlarmHI;
+////                       break;
+////                      default:
+////                      break;
+////                    }
+////	      	}
+////	      	break;
+////	   	case XanalogAlarmLO:
+////                {
+////                  if(tabix == 0)
+////	      	     g_sParameters.UVLO = analogPropertyTable[tabix].analogAlarmLO;
+////	        }
+////	      	break;
+///* 2018-06-13 changzehai(DTT) ----------------------------------- DEl End   -*/        
+////	   	case XcommonNetworkAddress:
+////                {
+////	      	  if(commonNetworkAddress[4] != (g_sParameters.ulStaticIP & 0xff))
+////                  {
+////                      for(i = 0; i < 4;i++)
+////                      {
+////                         temp = commonNetworkAddress[3-i];
+////                         temp = temp << 8;
+////                      }
+////                      g_sParameters.ulStaticIP = temp;
+////                      
+////                      //
+////                      // Shut down connections in preparation for the IP address change.
+////                      //
+////                      ConfigPreUpdateIPAddress();
+////              
+////                      //
+////                      // Update the working default set and save the parameter block.
+////                      //
+////                      //g_sWorkingDefaultParameters = g_sParameters;
+////              
+////                      //ConfigSave();
+////              
+////                      //
+////                      // Tell the main loop that a IP address update has been requested.
+////                      //
+////                      g_bChangeIPAddress = true;
+////                  }
+////                }
+////	      	break;
+////                case XcommonNetworkPort://commonNetworkPort
+////                {
+////                  
+////                    g_sParameters.TrapPort = commonNetworkPort;
+////                }    
+////	      	break;
+//		
+//	   	case XfnRegateNumber:
+//                {
+//                  if(fnRegateNumber <= RECNT_UPPER_LIMIT )
+//                    g_sParameters.rgcnt = fnRegateNumber;
+//                }    
+//	      	break;
+//		case XfnRegateDelay1:
+//                {
+//                   if((fnRegateDelay1 <= REDEY_UPPER_LIMIT) && (fnRegateDelay1 >= REDEY_LOWER_LIMIT))
+//                     g_sParameters.delay1 = fnRegateDelay1;
+//                }	
+//	        break;
+//		//--------------------------------------
+//	   	case XfnRegateDelay2:    	
+//	      	{
+//                   if((fnRegateDelay2 <= REDEY_UPPER_LIMIT) && (fnRegateDelay2 >= REDEY_LOWER_LIMIT))
+//                     g_sParameters.delay2 = fnRegateDelay2;
+//                }	
+//	      	break;
+//                case XfnRegateDelay3:    	
+//	      	{
+//                   if((fnRegateDelay3 <= REDEY_UPPER_LIMIT) && (fnRegateDelay3 >= REDEY_LOWER_LIMIT))
+//                     g_sParameters.delay3 = fnRegateDelay3;
+//                }	
+//	      	break;
+//                case XfnFixedTimeSWEnable:
+//                {
+//                  u8_t en_fixtime = 0;//channel_fixtime_enable
+//                  if(tabix < fnNumberOutput)
+//                  {
+//                     en_fixtime = channel_fixtime_enable[tabix];
+//                     if(fnACoutputSWTable[tabix].fnFixedTimeSWEnable)
+//                              g_sParameters.remote_cmd |=  en_fixtime;
+//                     else
+//                              g_sParameters.remote_cmd &=  ~en_fixtime;
+//                  }
+//                }
+//                break;
+//               case XfnOpenFixedTick:
+//               {
+//                 u32_t uoOpentick = 0;
+//                 //CPU_SR_ALLOC();
+//                 //CPU_CRITICAL_ENTER();                                 /* Tell uC/OS-III that we are starting an ISR             */
+//                 if(tabix < fnNumberOutput)
+//                 {
+//                       uoOpentick =  fnACoutputSWTable[tabix].fnOpenFixedTick;
+//                       g_sParameters.boottime[tabix].hour = uoOpentick/360000;
+//                       g_sParameters.boottime[tabix].minute = uoOpentick%360000/6000;
+//                 }
+//                 //CPU_CRITICAL_EXIT();
+//               }
+//               break;
+//               
+//               case XfnCloseFixedTick:
+//               {
+//                 u32_t uoClosetick = 0;
+//                 //CPU_SR_ALLOC();
+//                 //CPU_CRITICAL_ENTER();                                 /* Tell uC/OS-III that we are starting an ISR             */
+//                 if(tabix < fnNumberOutput)
+//                 {
+//                       uoClosetick =  fnACoutputSWTable[tabix].fnCloseFixedTick;
+//                       g_sParameters.shuttime[tabix].hour = uoClosetick/360000;
+//                       g_sParameters.shuttime[tabix].minute = uoClosetick%360000/6000;
+//                 }
+//                 //CPU_CRITICAL_EXIT();
+//               }
+//               break;
+//	   	case XfnACOutputSWEnable:
+//                {
+//                   u8_t bit_mark = 0;
+//                   if(tabix < fnNumberOutput)
+//                   {
+//                       bit_mark = channel_status[tabix];
+//                       if(fnACoutputSWTable[tabix].fnACOutputSWEnable)//fnACoutputSWTable[0].fnACOutputSWEnable
+//                              g_sParameters.remote_cmd |=  bit_mark;
+//                       else
+//                              g_sParameters.remote_cmd &= ~bit_mark;
+//                   }
+//                }
+//	      	break;	
+//
+//		case XfnDefaultRestore:
+//                {
+//                          if(fnDefaultRestore)
+//                          {
+//                          //
+//				 // Update the working parameter set with the factory defaults.
+//				 //
+//				 ConfigLoadDeafault();
+//			   //
+//				 // Save the new defaults to flash.
+//				 //
+//				 ConfigSave();
+//			   //
+//				 // Apply the various changes required as a result of changing back to
+//				 // the default settings.
+//				 //
+//				 ConfigUpdateAllParameters();
+//			   //
+//			   //set reset flag as tell the system to reset .
+//			   //
+//				 bReset = true;
+//                          }
+//                }	
+//		break;
+//                case XfnSavePara:
+//                {
+//                           if(fnSavePara)   
+//                           {
+//                                  g_sWorkingDefaultParameters = g_sParameters;
+//			         ConfigSave();
+//                           }
+//                }	
+//		break;
+//                case XfnResetDev:
+//                {
+//                           if(fnResetDev)   
+//                           {
+//                                 bReset = true;
+//                           }
+//                }	
+//		break;
+//                
+//                case XfnSntpEn:
+//                {
+//                          if(fnSntpEn)
+//                          {	
+//			      g_sParameters.ucFlags |= SNTP_EN_FLAG;
+//                          }
+//                          else
+//                          {
+//                              //
+//                              // Shut down connections in preparation for the IP address change.
+//                              //
+//                              ConfigPreUpdateIPAddress();
+//                              g_sParameters.ucFlags &= ~SNTP_EN_FLAG;
+//                              ugSntp_Changed =false;
+//                          }	
+//                }
+//		break;
+//                case XfnSntpServiceAddr:
+//                {
+//                     sprintf((char *)g_sParameters.SNTPURL,"%d.%d.%d.%d",fnSntpServiceAddr[0],fnSntpServiceAddr[1],fnSntpServiceAddr[2],fnSntpServiceAddr[3]);
+//                      
+//                      //
+//                      // Shut down connections in preparation for the IP address change.
+//                      //
+//                      ConfigPreUpdateIPAddress();
+//              
+//                      //
+//                      // Update the working default set and save the parameter block.
+//                      //
+//                      
+//                      //
+//                      // Tell the main loop that a IP address update has been requested.
+//                      //
+//                      ugSntp_Changed = true ;
+//                  
+//                }
+//		break;
+//                case XfnSntpInter:
+//                {
+//                  if((fnSntpInter <= SNTP_UPPER_INTER)&&(fnSntpInter >= SNTP_LOWER_INTER))
+//                  if(g_sParameters.SNTPInterval != fnSntpInter)
+//                  {
+//                     g_sParameters.SNTPInterval = fnSntpInter;
+//                  }
+//                }
+//		break;
+//                case XfnTrapEn:
+//                {
+//                  if(fnTrapEn)
+//                      g_sParameters.ucFlags |= CONFIG_EN_TRAP;
+//                  else
+//                     g_sParameters.ucFlags &= ~CONFIG_EN_TRAP;	
+//                }
+//                break;
+//                case XfnTrapAddr:
+//                {
+//                   struct ip_addr trapaddr;
+//                   IP4_ADDR(&trapaddr,fnTrapAddr[0],fnTrapAddr[1],fnTrapAddr[2],fnTrapAddr[3]);
+//                   inet_ntoa_r(trapaddr,g_sParameters.TrapService,15);
+//                   //sprintf((char *)g_sParameters.TrapService,"%d.%d.%d.%d",)
+//                }
+//                break;
+//                case XfnTrapPort:
+//                {
+//                   g_sParameters.TrapPort = fnTrapPort;
+//                }
+//                break;
+//                case XfnAllCHCTRL://XfnLoadFactory
+//                {
+//                   u8_t CtrlBit = 0x0f;
+//                   
+//                   if(fnAllCHCTRL == ALL_CHANNEL_ON)
+//                     g_sParameters.remote_cmd |= CtrlBit;
+//                   else if(fnAllCHCTRL == ALL_CHANNEL_OFF)
+//                     g_sParameters.remote_cmd &= ~CtrlBit;
+//                }
+//                break;
+//                case XfnLoadFactory://XfnLoadFactory
+//                {
+//                  if(fnLoadFactory)
+//                  {
+//                                 ConfigLoadFactory();
+//                                 memcpy(&g_sWorkingDefaultParameters.ulMACAddr[0], &g_sParameters.ulMACAddr[0], 6); //MAC Address
+//                                 memcpy(g_sWorkingDefaultParameters.Serial,g_sParameters.Serial,13);
+//                                 //g_sSyscalparaters = g_FactorySyscalparameters;
+//			   //
+//				 // Save the new defaults to flash.
+//				 //
+//				 ConfigSave();
+//			         //SystemSave();
+//				 // Apply the various changes required as a result of changing back to
+//				 // the default settings.
+//				 //
+//				 ConfigUpdateAllParameters();
+//			   //
+//			   //set reset flag as tell the system to reset .
+//			   //
+//				 bReset = true;
+//                  }
+//                }
+//                break;
+//                case XfnResetBoot:
+//                {
+//                    if(fnResetBoot)
+//                    {
+//                        //
+//                        //General the control stype from the cgi of http.
+//                        //	
+//                        ConfigPreUpdateIPAddress();  
+//                              //
+//                        // Find the "port" parameter.
+//                        //
+//                        g_sWorkingDefaultParameters.updata[0] = 'f';
+//                        g_sWorkingDefaultParameters.updata[1] = 'a';
+//                        g_sWorkingDefaultParameters.updata[2] = 'i';
+//                        g_sWorkingDefaultParameters.updata[3] = 'l';
+//                        ConfigSave();
+//                        bReset   = true;
+//                    }
+//                }
+//                break;
+//		default:
+//	      	break;
+//	}
+//
+	return 0;
+}
+static void mibget_ace(s16_t varix, s16_t tabix, u8_t **vvptr)			//读
+{
+//       u8_t i = 0;
+//       u8_t bit_mark = 0;
+//	switch(varix)
+//   	{
+////                case XanalogAlarmHI:
+////                {   
+////                    switch(tabix)
+////                    {
+////                       case 0:
+////	               analogPropertyTable[tabix].analogAlarmHI = g_sParameters.OverVoltage ;
+////                       break;
+////                       case 1:
+////                       analogPropertyTable[tabix].analogAlarmHI = g_sParameters.LeakCurrent ;
+////                       break;
+////                       case 2:
+////                       analogPropertyTable[tabix].analogAlarmHI = g_sParameters.OverCurrent ;
+////                       break;
+////                      default:
+////                      break;
+////                    }
+////                    *vvptr = (u8_t*)&analogPropertyTable[tabix].analogAlarmHI;
+////	      	}
+////	      	break;
+////	   	case XanalogAlarmLO:
+////                {
+////                  if(tabix == 0)
+////	      	     analogPropertyTable[tabix].analogAlarmLO = g_sParameters.UVLO ;
+////                     *vvptr = (u8_t*)&analogPropertyTable[tabix].analogAlarmLO;
+////	        }
+////	      	break;
+//                
+//                case XcommonNetworkAddress:
+//                {
+//	      	  if(commonNetworkAddress[4] != (g_sParameters.ulStaticIP & 0xff))
+//                  {
+//                         commonNetworkAddress[0] = (g_sParameters.ulStaticIP >> 24)&0xff;
+//                         commonNetworkAddress[1] = (g_sParameters.ulStaticIP >> 16)&0xff;
+//                         commonNetworkAddress[2] = (g_sParameters.ulStaticIP >> 8)&0xff;
+//                         commonNetworkAddress[3] = g_sParameters.ulStaticIP &0xff;
+//                  }
+//                  *vvptr = (u8_t*)&commonNetworkAddress[0];
+//                }
+//      	        break;
+//                
+//                case XcommonNetworkPort://commonNetworkPort
+//                {
+//                  
+//                      commonNetworkPort =g_sParameters.webport;
+//                      *vvptr = (u8_t*)&commonNetworkPort;
+//                }    
+//	      	break;
+//                
+//                case XcommonInternalTemperature:
+//                {
+//                        commonInternalTemperature = temp_value;
+//			*vvptr = (u8_t*)&commonInternalTemperature;//the temperature of internal ,the fact value *10.
+//                }
+//			break;
+//		case XcommonInternalHumidity:
+//                {
+//			commonInternalHumidity = humi_value;
+//			*vvptr = (u8_t*)&commonInternalHumidity;//the humidity of internal,the fact value *10.
+//                }
+//			break;
+//                        
+////                case XfnRegateNumber:
+////                {
+////                  
+////                   fnRegateNumber = g_sParameters.rgcnt;
+////                   *vvptr = (u8_t*)&fnRegateNumber;
+////                }    
+////	      	break;
+////		case XfnRegateDelay1:
+////                {
+////                   fnRegateDelay1 = g_sParameters.delay1;
+////                   *vvptr = (u8_t*)&fnRegateDelay1;
+////                }	
+////	        break;
+////		//--------------------------------------
+////	   	case XfnRegateDelay2:    	
+////	      	{
+////                    fnRegateDelay2 = g_sParameters.delay2;
+////                    *vvptr = (u8_t*)&fnRegateDelay2;
+////                }	
+////	      	break;
+////                case XfnRegateDelay3:    	
+////	      	{
+////                   fnRegateDelay3 = g_sParameters.delay3;
+////                    *vvptr = (u8_t*)&fnRegateDelay3;
+////               }	
+////	      	break;
+////                case  XfnFixedTimeSWEnable:
+////                {
+////                  u8_t en_fixtime = 0;
+////                  if(tabix < fnNumberOutput)
+////                  {
+////                     en_fixtime = channel_fixtime_enable[tabix];
+////                     if(g_sParameters.remote_cmd & en_fixtime)
+////                         fnACoutputSWTable[tabix].fnFixedTimeSWEnable = 1;
+////                     else
+////                         fnACoutputSWTable[tabix].fnFixedTimeSWEnable = 0;
+////                      *vvptr = (u8_t*)&fnACoutputSWTable[tabix].fnFixedTimeSWEnable;
+////                  } 
+////                 
+////                }
+////                break;
+////               case XfnOpenFixedTick:
+////               {
+////                 u32_t uoOpentick = 0;
+////                 if(tabix < fnNumberOutput)
+////                 {
+////                   uoOpentick = g_sParameters.boottime[tabix].hour *360000ul+ g_sParameters.boottime[tabix].minute*6000ul;
+////                   fnACoutputSWTable[tabix].fnOpenFixedTick = uoOpentick;
+////                   *vvptr = (u8_t*)&fnACoutputSWTable[tabix].fnOpenFixedTick;
+////                 }
+////               }
+////               break;
+//               
+////               case XfnCloseFixedTick:
+////               {
+////                 u32_t uoClosetick = 0;
+////                 if(tabix < fnNumberOutput)
+////                 {
+////                   uoClosetick = g_sParameters.shuttime[tabix].hour *360000ul+ g_sParameters.shuttime[tabix].minute*6000ul;
+////                   fnACoutputSWTable[tabix].fnCloseFixedTick = uoClosetick;
+////                   *vvptr = (u8_t*)&fnACoutputSWTable[tabix].fnCloseFixedTick;
+////                 }
+////               }
+////               break;
+////                case XfnACOutputSWEnable:
+////                {
+////                   u8_t bit_mark = 0;
+////                   if(tabix < fnNumberOutput)
+////                   {
+////                       bit_mark = channel_status[tabix];
+////                       if(g_sParameters.remote_cmd & bit_mark)
+////                             fnACoutputSWTable[tabix].fnACOutputSWEnable = 1;
+////                       else
+////                             fnACoutputSWTable[tabix].fnACOutputSWEnable = 0; 
+////                       
+////                       *vvptr = (u8_t*)&fnACoutputSWTable[tabix].fnACOutputSWEnable;
+////                   }
+////                   
+////                }
+////	      	break;	
+//		
+//
+//		case XfnACSupplyVol:
+//			fnACSupplyVol = analogValue[0];	   //the AC supply voltage ,the fact value *100.
+//			*vvptr = (u8_t*)&fnACSupplyVol;
+//			break;
+//                        
+//                case XfnLeakage:
+//			fnLeakage = analogValue[1];	   //the device leakage current ,the fact value *100.
+//			*vvptr = (u8_t*)&fnLeakage;
+//			break;
+//                        
+//                 case XfnOutputCurrent:
+//			fnOutputCurrent = analogValue[2];   //the device load current ,the fact value *100.XfnRegateNumber
+//			*vvptr = (u8_t*)&fnOutputCurrent;
+//			break;
+//                 case XfnACOutputStatus:
+//                 {
+//                       if(tabix < fnNumberOutput )
+//                       {
+//			fnACoutputSWTable[tabix].fnACOutputStatus = ChannelStatus & channel_status[tabix]; //the device regate number .
+//			
+//                       }
+//                       *vvptr = (u8_t*)&fnACoutputSWTable[tabix].fnACOutputStatus;
+//                 }
+//			break;
+//                 case XfnGroudedStatus:
+//                 {
+//                    fnGroudedStatus = discreteValue[4];
+//                    *vvptr = (u8_t*)&fnGroudedStatus;
+//                 }
+//                 break;
+//                 
+//                 case XfnLineorderStatus:
+//                 {
+//                    fnLineorderStatus = discreteValue[5];
+//                    *vvptr = (u8_t*)&fnLineorderStatus;
+//                 }
+//                 break;
+//                 case XfnLightProStatus:
+//                 {
+//                    fnLightProStatus = discreteValue[6];
+//                    *vvptr = (u8_t*)&fnLightProStatus;
+//                 }
+//                 break;
+//          
+//                case XfnLanmpStatus:
+//                {
+//                    fnLanmpStatus = discreteValue[7];
+//                    *vvptr = (u8_t*)&fnLanmpStatus;
+//                }
+//                break;
+//          
+//                       
+////                 case XfnSntpEn:
+////                {
+////                          if(g_sParameters.ucFlags & SNTP_EN_FLAG)
+////                          {	
+////			      fnSntpEn = 1;
+////                          }
+////                          else
+////                          {
+////                              fnSntpEn = 0; 
+////                          }	
+////                          *vvptr = (u8_t*)&fnSntpEn;
+////                }
+////		break;
+//                
+////                case XfnSntpInter:
+////                {
+////                     fnSntpInter = g_sParameters.SNTPInterval;
+////                     *vvptr = (u8_t*)&fnSntpInter;
+////                }
+////		break;
+////                 case XfnRegateNumber:
+////			fnRegateNumber = g_sParameters.rgcnt; //the device regate number .
+////			*vvptr = (u8_t*)&fnRegateNumber;
+////			break;
+////		//---------------------------------------
+////		case XdiscreteAlarmValue:
+////			*vvptr = (uint8*)&discreteValue[0];
+////			break;
+////
+////		case XcommonInternalTemperature:
+////			*vvptr = (uint8*)&updata_SNMP_data.TEMPERATURE;
+////			break;
+////	
+////   		case XfnOpticalReceiverPower:
+////			*vvptr = (uint8*)&updata_SNMP_data.OP[tabix];
+////			break;
+////   		case XfnRFActiveOutputLevel:
+////			*vvptr = (uint8*)&updata_SNMP_data.RF;
+////			break;
+////
+////		case XfnOpticalReceiverABSwitchState:
+////			*vvptr = (uint8*)&updata_SNMP_data.ABswitchState;
+////			break;
+////
+////   		case XfnDCPowerVoltage:
+////			*vvptr = (uint8*)&updata_SNMP_data.DCPOWER[tabix];
+////			break;
+////		case XfnDCPowerName:
+////			*vvptr = (uint8*)&Str_fnDCPowerName[tabix];
+////			break;
+////
+////                case XfnTrapAddr:
+////                {
+////                    struct ip_addr ucTrapServiceIP;	
+////		    char *pucurl= (char *)g_sParameters.TrapService;
+////		    ucTrapServiceIP.addr = inet_addr((char*)pucurl);
+////                    fnTrapAddr[0] = ucTrapServiceIP.addr&0xff;
+////                    fnTrapAddr[1] = (ucTrapServiceIP.addr>>8)&0xff;
+////                    fnTrapAddr[2] = (ucTrapServiceIP.addr>>16)&0xff;
+////                    fnTrapAddr[3] = (ucTrapServiceIP.addr>>24)&0xff;
+////                    *vvptr = (u8_t*)&fnTrapAddr[0];
+////                }     
+////                  break;
+//		default:
+//			break;
+//    }
+}
+
+static s16_t mibindex_ace(s16_t varix, s16_t tabix)
+{
+//   	//属性表
+//   	if (varix >= XanalogParameterOID  && varix <= XanalogAlarmDeadband )
+//   	{
+//      	if (tabix >= analogPropertyNO) return -1;
+//      	return 1;
+//   	}
+//
+//   	//离散属性表
+//   	if (varix >= XdiscreteParameterOID  && varix <= XdiscreteAlarmState )
+//   	{
+//      	if (tabix >= discretePropertyNO) return -1;
+//      	return 1;
+//   	}
+//
+//   	//当前报警表
+//   	else if (varix >= XcurrentAlarmOID  && varix <= XcurrentAlarmValue )
+//   	{
+//      	if (tabix >= currentAlarmNO) return -1;
+//      	return 1;
+//   	}
+//
+//   	//光收表
+//   	else if (varix >= XfnACoutputSWIndex  && varix <= XfnACChannelName)
+//   	{
+//      	if (tabix >= fnNumberOutput) return -1;
+//      	return 1;
+//   	}
+//	
+
+   	return -1;
+}
+
+//extern void UpdateSysConfigBuf(uint8 *temp, uint8 len, uint16 pos);
+
+MIB mib_ace =
+{
+    mibvar_ace,
+    mibvarsize_ace,
+    mibtab_ace,
+    mibtabsize_ace,
+    mibget_ace,               // mibget
+    mibset_ace,  	      // mibset
+    mibindex_ace,
+    0,  					  // mibinit
+};
+

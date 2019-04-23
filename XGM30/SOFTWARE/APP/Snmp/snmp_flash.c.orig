@@ -1,0 +1,360 @@
+/*****************************************************************************/
+/* 文件名:    snmp_flash.c                                                   */
+/* 说  明:    flash读写处理                                                  */   
+/* 创  建:    2018-06-22 changzehai(DTT)                                     */
+/* 更  新:    无                                                             */
+/* Copyright 1998 - 2018 DTT. All Rights Reserved                            */
+/*****************************************************************************/
+#include "flash.h"
+
+
+/*-----------------------------*/
+/* 函数声明                    */
+/*-----------------------------*/
+static uint16_t Flash_GetSector( uint32_t Address );
+static void Snmp_Flash_EraseSector( uint16_t SectorNum );
+static void Snmp_Flash_Write_Secondary_Sector(uint32_t primary_address, uint32_t secondary_address, int8_t* data, uint16_t length, uint8_t index, uint8_t indication);
+uint8_t Snmp_Flash_Write(int8_t* data, uint16_t length, uint8_t index, uint8_t indication);
+static void Snmp_Flash_Write_Byte( uint32_t address, uint16_t length, int8_t* data );
+static void Snmp_Flash_Read_Byte( uint32_t address, uint16_t length, int8_t* data );
+
+/****************************************************************************
+* 功    能: 获取地址Address对应的sector编号
+* 入口参数：地址
+* 出口参数：sector编号
+* 说    明：无
+* 调用方法：无
+****************************************************************************/
+static uint16_t Flash_GetSector( uint32_t Address )
+{
+    uint16_t sector = 0;
+    if( ( Address < ADDR_FLASH_SECTOR_1 ) && ( Address >= ADDR_FLASH_SECTOR_0 ) )
+    {
+        sector = FLASH_Sector_0;
+    }
+    else if( ( Address < ADDR_FLASH_SECTOR_2 ) && ( Address >= ADDR_FLASH_SECTOR_1 ) )
+    {
+        sector = FLASH_Sector_1;
+    }
+    else if( ( Address < ADDR_FLASH_SECTOR_3 ) && ( Address >= ADDR_FLASH_SECTOR_2 ) )
+    {
+        sector = FLASH_Sector_2;
+    }
+    else if( ( Address < ADDR_FLASH_SECTOR_4 ) && ( Address >= ADDR_FLASH_SECTOR_3 ) )
+    {
+        sector = FLASH_Sector_3;
+    }
+    else if( ( Address < ADDR_FLASH_SECTOR_5 ) && ( Address >= ADDR_FLASH_SECTOR_4 ) )
+    {
+        sector = FLASH_Sector_4;
+    }
+    else if( ( Address < ADDR_FLASH_SECTOR_6 ) && ( Address >= ADDR_FLASH_SECTOR_5 ) )
+    {
+        sector = FLASH_Sector_5;
+    }
+    else if( ( Address < ADDR_FLASH_SECTOR_7 ) && ( Address >= ADDR_FLASH_SECTOR_6 ) )
+    {
+        sector = FLASH_Sector_6;
+    }
+    else if( ( Address < ADDR_FLASH_SECTOR_8 ) && ( Address >= ADDR_FLASH_SECTOR_7 ) )
+    {
+        sector = FLASH_Sector_7;
+    }
+    else if( ( Address < ADDR_FLASH_SECTOR_9 ) && ( Address >= ADDR_FLASH_SECTOR_8 ) )
+    {
+        sector = FLASH_Sector_8;
+    }
+    else if( ( Address < ADDR_FLASH_SECTOR_10 ) && ( Address >= ADDR_FLASH_SECTOR_9 ) )
+    {
+        sector = FLASH_Sector_9;
+    }
+    else if( ( Address < ADDR_FLASH_SECTOR_11 ) && ( Address >= ADDR_FLASH_SECTOR_10 ) )
+    {
+        sector = FLASH_Sector_10;
+    }
+    else/*(Address < FLASH_END_ADDR) && (Address >= ADDR_FLASH_SECTOR_11))*/
+    {
+        sector = FLASH_Sector_11;
+    }
+    return sector;
+}
+
+/****************************************************************************
+* 功    能: 获取指定扇区开始地址
+* 入口参数：SectorNum 扇区号
+* 出口参数：无
+* 说    明：无
+* 调用方法：无
+****************************************************************************/
+//uint32_t Flash_Get_Sector_Start_Addr(uint16_t sector)
+//{
+//    uint32_t addr = 0;
+//    
+// 
+//    switch(sector)
+//    {
+//    case FLASH_Sector_0:  
+//         addr = ADDR_FLASH_SECTOR_0;
+//        break;
+//    case FLASH_Sector_1:
+//         addr = ADDR_FLASH_SECTOR_1;
+//        break;
+//    case FLASH_Sector_2:
+//         addr = ADDR_FLASH_SECTOR_2;
+//        break;
+//    case FLASH_Sector_3:
+//         addr = ADDR_FLASH_SECTOR_3;
+//        break;
+//    case FLASH_Sector_4:
+//         addr = ADDR_FLASH_SECTOR_4;
+//        break;
+//    case FLASH_Sector_5:
+//         addr = ADDR_FLASH_SECTOR_5;
+//        break;
+//    case FLASH_Sector_6:
+//         addr = ADDR_FLASH_SECTOR_6;
+//        break;
+//    case FLASH_Sector_7:
+//         addr = ADDR_FLASH_SECTOR_7;
+//        break;
+//    case FLASH_Sector_8:
+//         addr = ADDR_FLASH_SECTOR_8;
+//        break;
+//    case FLASH_Sector_9:
+//         addr = ADDR_FLASH_SECTOR_9;
+//        break;
+//    case FLASH_Sector_10:
+//         addr = ADDR_FLASH_SECTOR_10;
+//        break;
+//    case FLASH_Sector_11:
+//         addr = ADDR_FLASH_SECTOR_11;
+//        break;
+//    default:
+//        break;
+//    }
+//    
+//    return addr;
+//
+//}
+
+/****************************************************************************
+* 功    能: 擦除指定扇区
+* 入口参数：SectorNum 扇区号
+* 出口参数：无
+* 说    明：无
+* 调用方法：无
+****************************************************************************/
+static void Snmp_Flash_EraseSector( uint16_t SectorNum )
+{
+    FLASH_Unlock();
+    FLASH_ClearFlag( FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR |
+                     FLASH_FLAG_PGAERR | FLASH_FLAG_PGPERR | FLASH_FLAG_PGSERR );
+    if( FLASH_EraseSector( SectorNum, VoltageRange_3 ) != FLASH_COMPLETE ) while( 1 );
+    FLASH_Lock();
+}
+
+
+/****************************************************************************
+* 功    能: 写入length字节数据
+* 入口参数：data：要写入的IP数据指针
+*           length： 数据长度
+*           index： 要写入的第一个IP在第几个4K
+*           Indication: 写入的第一个IP为所在4K共256个IP中的第几个IP
+* 出口参数：无
+* 说    明：无
+* 调用方法：无
+****************************************************************************/
+uint8_t Snmp_Flash_Write(int8_t* data, uint16_t length, uint8_t index, uint8_t indication)
+{
+
+    uint32_t address;    
+    uint16_t sector;
+    uint16_t Flash_Sector_Flag1 = 0; /* 主次Sector标志1 */
+    uint16_t Flash_Sector_Flag2 = 0; /* 主次Sector标志2 */
+    uint16_t i;
+    
+    
+    FLASH_Unlock(); //解锁FLASH后才能向FLASH中写数据。
+    FLASH_ClearFlag( FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR |
+                     FLASH_FLAG_PGAERR | FLASH_FLAG_PGPERR | FLASH_FLAG_PGSERR );
+    
+    
+    /* 主次Sector标志  */
+    Flash_Sector_Flag1 = *(uint8_t *)ADDR_FLASH_SECTOR_6;
+    Flash_Sector_Flag2 = *(uint8_t *)ADDR_FLASH_SECTOR_7;
+    
+    if (Flash_Sector_Flag1 == 0xFFFF && Flash_Sector_Flag2 == 0xFFFF) /* 系统第一次写flash */
+    {
+        /* 获取SECTOR_6编号 */
+        sector = Flash_GetSector( ADDR_FLASH_SECTOR_6 );
+        /* 擦除SECTOR_6 */
+        FLASH_EraseSector(sector, VoltageRange_3); 
+    
+        /*  地址增加2K，前面2K用于存放主次Sector标志 */
+        address = ADDR_FLASH_SECTOR_6 + 2048;
+        
+        for (i = 0; i < length; i++)
+        {
+            if ( FLASH_ProgramByte( address, data[i])== FLASH_COMPLETE)
+            {
+               address++;  
+            }
+            else
+            {
+                while(1);
+            }
+        }
+
+        /* 设置主次Sector标志 */        
+        *(uint8_t *)ADDR_FLASH_SECTOR_6 = 0x8000; /* 主Sector */
+        *(uint8_t *)ADDR_FLASH_SECTOR_7 = 0x0001; /* 次Sector */      
+        
+    }
+    else if (Flash_Sector_Flag1 == 0x8000 && Flash_Sector_Flag2 == 0x0001) /* SECTOR_6为主Sector，SECTOR_7为次Sector */
+    {
+        /* 将数据写入到SECTOR_7，并将SECTOR_7设置为主Sector，SECTOR_6设置为次Sector */
+         Snmp_Flash_Write_Secondary_Sector(ADDR_FLASH_SECTOR_6, ADDR_FLASH_SECTOR_7, 
+		                                   data, length, index, indication);
+        
+    
+    }
+    else if(Flash_Sector_Flag1 == 0x0001 && Flash_Sector_Flag2 == 0x8000) /* SECTOR_7为主Sector，SECTOR_6为次Sector */
+    {
+        /* 将数据写入到SECTOR_6，并将SECTOR_6设置为主Sector，SECTOR_7设置为次Sector */ 
+         Snmp_Flash_Write_Secondary_Sector(ADDR_FLASH_SECTOR_7, ADDR_FLASH_SECTOR_6, 
+		                                   data, length, index, indication);        
+    } 
+    else
+    {
+       while(1);
+    }
+
+    /* 加锁 */
+    FLASH_Lock();
+
+}
+
+
+/****************************************************************************
+* 函    数: Snmp_Flash_Write_Secondary_Sector
+* 功    能: 将数据写入原次Sector，并把原次Sector改为主Sector，原主Sector改为次Sector
+* 入口参数：primary_address   ：原主分区开始地址
+*           secondary_address ：原次分区开始地址
+*           data              ：要写入的IP数据指针
+*           length            ：数据长度 
+*           index             ： 要写入的第一个IP在第几个4K
+*           Indication        : 写入的第一个IP为所在4K共256个IP中的第几个IP
+* 出口参数：无
+* 说    明：无
+* 调用方法：无
+****************************************************************************/
+static void Snmp_Flash_Write_Secondary_Sector
+(
+    uint32_t     primary_address, 
+    uint32_t     secondary_address, 
+    int8_t*      data,
+    uint16_t     length,
+    uint8_t      index,
+    uint8_t      Indication
+    
+)
+{
+        uint8_t      i;
+        uint16_t     sector;
+        char         ip[256][16];
+        
+    
+
+        /* 获取原次Sector编号 */
+        sector = Flash_GetSector( secondary_address );
+        
+        /* 擦除原次Sector */
+        FLASH_EraseSector(sector, VoltageRange_3);
+        
+        /*  地址增加2K，前面2K用于存放主次Sector标志 */
+        primary_address   += 2048;
+        secondary_address += 2048;
+        
+        /* 将原主Sector所写位置前面的数据写到次Sector */
+        for (i = 0; i < index; i++)
+        {
+            /* 从原主Sector读出4K数据 */
+            Flash_Read_Byte(primary_address, 4096, ip);
+            
+            /* 将读出的4K数据写入到次Sector */
+            Flash_Write_Byte(secondary_address, 4096, ip);
+            
+            /* 地址增加4K */
+            primary_address   += 4096;
+            secondary_address += 4096;
+        }  
+        
+        /* 读出要修改的IP所处4K的数据 */
+        Flash_Read_Byte(primary_address, 4096, ip);
+        
+        /* 修改对应IP */
+        memcpy(&ip[Indication][0], data, length); 
+        
+        /* 接着将该4K数据写到次Sector中 */
+        Flash_Write_Byte(secondary_address, 4096, ip);
+
+
+        /* 更换主次Sector标志 */ 
+        *(uint8_t *)secondary_address = 0x8000; /* 主Sector */
+        *(uint8_t *)primary_address   = 0x0001; /* 次Sector */ 
+
+
+}
+
+/****************************************************************************
+* 功    能: 写入length字节的数据
+* 入口参数：address：地址
+*           length： 数据长度
+*           data_8  指向写入的数据
+* 出口参数：无
+* 说    明：无
+* 调用方法：无
+****************************************************************************/
+static void Snmp_Flash_Write_Byte( uint32_t address, uint16_t length, int8_t* data )
+{
+    uint16_t i;
+    
+   
+        for(i = 0; i < length; i++)
+        {
+            
+                if ( FLASH_ProgramByte( address, data[i]) == FLASH_COMPLETE)
+                {
+                   address++;  
+                }
+                else
+                {
+                    while(1);
+                }
+        
+        }
+
+
+
+}
+
+/****************************************************************************
+* 功    能: 读取length字节的数据
+* 入口参数：address：地址
+*           length： 数据长度
+*           data_8  指向读出的数据
+* 出口参数：无
+* 说    明：无
+* 调用方法：无
+****************************************************************************/
+static void Snmp_Flash_Read_Byte( uint32_t address, uint16_t length, int8_t* data )
+{
+    uint16_t i;
+    
+    
+    for( i = 0; i < length; i++ )
+    {
+        data[i] = *( __IO int8_t* )address;
+        address++;
+    }
+}

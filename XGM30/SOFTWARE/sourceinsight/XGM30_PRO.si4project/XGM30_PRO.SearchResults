@@ -1,0 +1,111 @@
+---- vindex Matches (16 in 1 files) ----
+inReqOutRep in snmp_snmpAgent.c (APP\Snmp) : 
+    u8_t    type, version, errix, errcode, nflag;
+    s8_t    vindex;
+    u16_t  i;
+    s32_t  r;
+    
+inReqOutRep in snmp_snmpAgent.c (APP\Snmp) : 
+    /* Variable bindings */
+    vindex = 0;
+    varbinds[0] = inp;
+    while( inp < ibpend )
+    {
+        /* SEQUENCE OF { OID, Value } */
+        varbinds[vindex++] = inp;   /* Save bindings */
+        
+        /* SEQUENCE */
+        len2 = snmpReadLength( &inp, Sequence );
+inReqOutRep in snmp_snmpAgent.c (APP\Snmp) : 
+        {
+            ERR_VGO( "Variable", vindex, err_parse );
+        }
+        inp += len2;
+        if( vindex >= MAXVAR )
+        {
+            errcode = tooBig;
+            errix = 0;
+            vindex = 0;             /* Skip variable processing */
+            break;
+        }
+    }
+inReqOutRep in snmp_snmpAgent.c (APP\Snmp) : 
+    /* Process variables from last to first. */
+    while( vindex )
+    {
+        inp = varbinds[vindex - 1];     /* Point to variable binding */
+        snmpReadLength( &inp, Sequence );
+        len2 = snmpReadLength( &inp, Identifier );
+        
+inReqOutRep in snmp_snmpAgent.c (APP\Snmp) : 
+            }
+            ERR_VGO( "End of MIB for var", vindex, err_val );
+        }
+        /* Perform view-based access */
+        i1 = isAccessAllowed( contextName );
+inReqOutRep in snmp_snmpAgent.c (APP\Snmp) : 
+                i1 = noAccess;
+                ERR_VGO( "VACM failure for var", vindex, err_val );
+        }
+        valp = mvp->ptr;
+        /* Check length fields */
+inReqOutRep in snmp_snmpAgent.c (APP\Snmp) : 
+            {
+                ERR_VGO( "Bad length field for var", vindex, err_parse );
+            }
+            i1 = 0;
+            if( ( mvp->opt & W ) == 0 )
+inReqOutRep in snmp_snmpAgent.c (APP\Snmp) : 
+            {
+                ERR_VGO( "Incorrect length for SetRequest", vindex, err_val );
+            }
+            else if( mibp->check )
+            {
+inReqOutRep in snmp_snmpAgent.c (APP\Snmp) : 
+                {
+                    ERR_VGO( "MIB check invalidated SetRequest", vindex, err_val );
+                }
+            }
+        }
+inReqOutRep in snmp_snmpAgent.c (APP\Snmp) : 
+                            {
+                                ERR_VGO( "Bad type/length field for var", vindex, err_parse );
+                            }
+                            i2 = ( mvp->len > len ) ? len : mvp->len;
+                            i1 = mvp->len - i2;
+inReqOutRep in snmp_snmpAgent.c (APP\Snmp) : 
+                            {
+                                ERR_VGO( "Bad type/length field for var", vindex, err_parse );
+                            }
+                            cp[len] = 0;
+                        }
+inReqOutRep in snmp_snmpAgent.c (APP\Snmp) : 
+                                {
+                                    ERR_VGO( "Cannot set var", vindex, err_parse );
+                                }
+                            }
+                            snmpRWriteVal( &outp, valp, String, mvp->len );
+inReqOutRep in snmp_snmpAgent.c (APP\Snmp) : 
+                            {
+                                ERR_VGO( "Cannot set var", vindex, err_parse );
+                            }
+                        }
+                        snmpRWriteVal( &outp, valp, i2, mvp->len );
+inReqOutRep in snmp_snmpAgent.c (APP\Snmp) : 
+                i1 = genErr;
+                ERR_VGO( "Invalid options for var", vindex, err_val );
+        }
+        /* Perform write notification if possible and necessary */
+        if( type == SetRequest && mvp->opt & CAW && mibp->set )
+inReqOutRep in snmp_snmpAgent.c (APP\Snmp) : 
+                errcode = i1;   /* Saved from before goto! */
+                errix = vindex;
+            }
+            snmpRWriteVal( &outp, 0, version ? ( nflag ? 0x82 : 0x81 ) : Null, 0 );
+            snmpRWriteVal( &outp, inp, Identifier, len2 );  /* Input ID */
+inReqOutRep in snmp_snmpAgent.c (APP\Snmp) : 
+        snmpRWriteLength( &outp, Sequence, soutp - outp );
+        vindex--;
+    }
+    /* Use requested var-binds for bad v1 packet */
+    if( version == 0 && errcode )

@@ -1,0 +1,3 @@
+v.1.0.1		
+Fixed bug uCOS-III in os_flag.c. The structure of the added element  Prio in structure OS_FLAG_GRP. 
+This eliminates the exeption when used OSFlagPend and OSFlagPost and with the same OS_FLAG_GRP in one thread.

@@ -1,0 +1,144 @@
+#include <includes.h>
+#include "arch/cc.h"
+#include "lwip/api.h"
+#include "Config/config.h"
+//!
+#define SNMP_TRAP_TASK_PRIO 0
+#define SNMP_THREAD_STACKSIZE 512
+////
+////! OS_TCB  snmp defintion.
+////
+//static   OS_TCB  SnmpTaskTCB;
+////
+////! SNMP task stack.
+////
+//static   CPU_STK SnmpTaskStk[SNMP_TRAP_TASK_STK_SIZE];
+//
+//! Snmp mib initilize.
+//
+//*****************************************************************************
+//
+//! This structure instance contains the run-time set of configuration
+//! parameters for S2E module.  This is the active parameter set and may
+//! contain changes that are not to be committed to flash.
+//
+//*****************************************************************************
+extern tConfigParameters g_sParameters;
+extern   void snmpInit(void);
+void snmp_Maintask(void)
+{
+    struct netconn *conn;
+    struct netbuf *Outbuf,*Inbuf;
+    struct ip_addr *raddr;
+    u16_t rport;
+	
+    u16_t len;
+    u8_t NetbufOut[320];
+    u8_t *NetbufIn;
+    u8_t *cp;
+    u8_t *tp;
+    err_t err ,recv_err;
+    conn = netconn_new(NETCONN_UDP);   /* 创建UDP连接  */
+    err = netconn_bind(conn,NULL,161);       /* 绑定本地地址和监听的端口号 */
+
+    if (err == ERR_OK)
+    {
+	    while(1)
+	    {
+		 recv_err = netconn_recv(conn,&Inbuf);
+		 if((Inbuf != NULL)&&(recv_err == ERR_OK))
+	      	 {    
+				//process_SNMPconnection(Inbuf);
+				len = netbuf_len(Inbuf);
+				if(len > 300)//丢掉过长的数据 
+				{
+					netbuf_delete(Inbuf);
+					continue;
+				}
+				//-------------------------------------------------
+				
+				netbuf_data(Inbuf, (void*)&NetbufIn, (u16_t *)&len);
+				rport = netbuf_fromport(Inbuf);
+				raddr = netbuf_fromaddr(Inbuf);
+                                
+				
+				cp = NetbufOut + sizeof(NetbufOut);
+				len = inReqOutRep(&cp, sizeof(NetbufOut), NetbufIn, len);
+                                
+				Outbuf = netbuf_new();
+				tp = netbuf_alloc(Outbuf, len);
+                               
+				memcpy(tp,cp,len);
+
+				netconn_sendto(conn, Outbuf, raddr, rport);
+                                netbuf_delete(Inbuf);
+				netbuf_delete(Outbuf);
+                               
+				//-------------------------------------------------
+	      	}
+	    }
+	}
+}
+
+extern unsigned char HostAddr[] ;
+void snmp_TrapSend(u8_t *buf, u16_t len)
+{
+    struct netconn *conn;
+    struct netbuf *Outbuf;
+    struct ip_addr raddr;
+    u8_t *s;
+    s8_t conerr;
+    //u16_t guTrapPort = 0;
+    
+//    IP4_ADDR(&raddr,HostAddr[0],HostAddr[1],HostAddr[2],HostAddr[3]);
+    
+    IP4_ADDR(&raddr, 192, 168, 1, 100);
+    Outbuf = netbuf_new();
+    s = netbuf_alloc(Outbuf, len);
+    memcpy(s,buf,len);
+	
+    conn = netconn_new(NETCONN_UDP);     	/* 创建UDP连接  	*/
+    netconn_bind(conn,IP_ADDR_ANY,1025);   	/* 绑定本地IP地址 	*/
+    
+//    conerr = netconn_connect(conn,&raddr,g_sParameters.TrapPort);
+    conerr = netconn_connect(conn,&raddr, 162);
+    if(conerr==ERR_OK)/* 连接远程主机 	*/
+    {
+	    netconn_send(conn,Outbuf);
+    }
+    
+    netbuf_delete(Outbuf);
+    netconn_delete(conn);
+}
+/**********************************/
+/*             TASK_SNMP          */
+/**********************************/
+
+void TASK_SNMP(void *pdata)
+{
+   snmpInit();
+   while(1)
+   {
+     snmp_Maintask();
+   }
+}
+void Snmp_Trap_Task(void)
+{
+   // OS_ERR err;
+    sys_thread_new("SNMP", TASK_SNMP, NULL, SNMP_THREAD_STACKSIZE, SNMP_TRAP_TASK_PRIO);
+//   OSTaskCreate( (OS_TCB        *)	&SnmpTaskTCB,
+//				  (CPU_CHAR      *)	"task snmp",
+//				  (OS_TASK_PTR    )	 TASK_SNMP,
+//				  (void          *) 0,
+//				  (OS_PRIO        )	SNMP_TRAP_TASK_PRIO,
+//				  (CPU_STK       *)	&SnmpTaskStk[0],
+//				  (CPU_STK   *)	        &SnmpTaskStk[SNMP_TRAP_TASK_STK_SIZE / 10u],
+//				  (OS_STK_SIZE   )	SNMP_TRAP_TASK_STK_SIZE,
+//				  (OS_MSG_QTY     ) 0,
+//				  (OS_TICK        ) 0,
+//				  (void          *) 0,
+//				  (OS_OPT         ) (OS_OPT_TASK_STK_CHK | OS_OPT_TASK_STK_CLR),
+//				  (OS_ERR        *) &err);
+}
+
+

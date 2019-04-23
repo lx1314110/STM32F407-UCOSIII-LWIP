@@ -1,0 +1,491 @@
+#include <includes.h>
+#include "arch/cc.h"
+#include "Snmp\snmp_SNMP.h"
+#include "Snmp\snmp_mib.h"
+#include "config.h"
+//-------------------------------------------------------------
+extern   MIB mib_ace;
+
+/* The following MIBs must be in lexicographical order */
+static   const MIB *mibs[] =
+{
+    &mib_ace,
+};
+
+/* This structure is defined as external to SNMPAgentTask() */
+AGENT_CONTEXT snmp_ac =
+{
+    mibs, (sizeof(mibs) / sizeof(MIB *)),0
+};
+//------------------------------------------------------------
+
+u8_t  snmp_Context[16];         				//SNMP社区串
+u32_t Snmp_Enterprise = 40172;            		//企业标识
+u8_t* Snmp_Context = snmp_Context;     		//SNMP社区串
+/*********************************************************************/
+/* analogProperty Table and discreteProperty table and current table.*/
+/*********************************************************************/
+//
+//! analogProperty table parameters.
+//
+/* 2018-06-13 changzehai(DTT) ----------------------------------- MOD Start -*/
+
+//AnalogPropertyTable analogPropertyTable[3];//
+AnalogPropertyTable analogPropertyTable;
+
+/* 2018-06-13 changzehai(DTT) ----------------------------------- MOD End   -*/
+
+//
+//! discreteProperty table parameters.
+//
+DiscretePropertyTable discretePropertyTable[7];
+//
+//! the current alarm table.
+//
+CurrentAlarmTable currentAlarmTable[11];
+
+
+/*********************************************************************/
+/* the common groud paramters.*/
+/*********************************************************************/
+//
+//! logical id.
+//
+u8_t 	commonNELogicalID[16];
+//
+//! the manufature of device.
+//
+u8_t 	commonNEVendor[DEVICE_INFO_LEN];
+//
+//! the model of device.
+//
+u8_t 	commonNEModelNumber[DEVICE_INFO_LEN];
+//
+//! the serial of device.
+//
+u8_t 	commonNESerialNumber[16];
+//
+//! the alarm detection control .
+//
+s16_t 	commonAlarmDetectionControl = 2;
+//
+//! the network address of the device.
+//
+u8_t 	commonNetworkAddress[4];
+//
+//! the port of the device.
+//
+u16_t 	commonNetworkPort;
+//
+//! the physical address.
+//
+u8_t 	commonPhysicalAddress[6];
+//
+//! the safe status of device.
+//
+s16_t	commonTamperStatus = 1;	
+//
+//! the temperature of conditon.
+//
+s16_t	commonInternalTemperature = 26;	
+//
+//! the humidity of the conditon.
+//
+u16_t	commonInternalHumidity = 0;	
+//!trap enable flag
+s16_t fnTrapEn;
+//!trap addr
+u8_t 	fnTrapAddr[4];
+//! trap port
+u16_t 	fnTrapPort;
+//! all channel contrl ON/OFF
+s16_t fnAllCHCTRL;
+//! load factory parameters.
+s16_t fnLoadFactory;
+//! reset the bootload
+s16_t fnResetBoot;
+extern u8_t sys_name[];
+extern u8_t sys_contact[];
+extern u8_t sys_location[];
+extern u8_t sys_descr[];
+extern u8_t sysObjectID[];
+//------------------------------------------------------------------------------
+/*********************************************/
+/* ac power management unit paraments,scalar.*/
+/*********************************************/
+//
+//!vendor ID.
+u8_t 	fnVendorOID[12] = {0x2b,6,1,4,1,0x82,0xb9,0x6c,1,10,1,0};
+//
+//!AC suppley voltage scalar.
+//
+u16_t   fnACSupplyVol;
+//
+//! leakage current scalar.
+//
+u16_t   fnLeakage;
+//
+//! work the total of output current scalar.
+//
+u16_t   fnOutputCurrent;
+//
+//! AC output channel number scalar.
+//
+u16_t    fnOutputNumber;
+//
+//! regate number scalar.
+//
+u16_t   fnRegateNumber;
+//
+//! regate delay first seconds scalar.
+//
+u16_t  fnRegateDelay1;
+//
+//! regate delay second seconds scalar.
+//
+u16_t  fnRegateDelay2;
+//
+//! regate delay third seconds scalar.
+//
+u16_t  fnRegateDelay3;
+/*********************************************/
+/*       fnACoutput sw table parameters      */
+/*********************************************/
+// 
+//! AC Output switch table 
+//
+s16_t  fnNumberOutput = 4;
+FnACOutputSWTable fnACoutputSWTable[4];
+
+s16_t fnDefaultRestore;
+s16_t fnSavePara;
+s16_t fnResetDev;
+/*********************************************/
+/*             fnSntp  parameters            */
+/*********************************************/
+// 
+//! sntp enable. 
+//
+s16_t fnSntpEn = 1;
+// 
+//! sntp service address. 
+//
+u8_t fnSntpServiceAddr[4];
+// 
+//! sntp inter  time. 
+//
+u16_t fnSntpInter;
+//------------------------------------------------------------------------------------------
+s16_t analogPropertyNO = 3; 					//模拟属性表数目
+s16_t currentAlarmNO = 0; 				         //当前报警表数目
+s16_t discretePropertyNO = 7; 					//离散属性表数目
+//------------------------------------------------------------------------------------------
+const char *Str_fnChannelName[4] = 
+{
+	"CH1",
+	"CH2",
+        "CH3",
+	"CH4"
+};
+//
+//! extern defintion from config.c.
+extern tConfigParameters g_sParameters;
+//--------------------------------
+
+/* 2018-06-13 changzehai(DTT) ----------------------------------- ADD Start -*/
+#if 0     /* TODO */
+/* 默认IP表 */
+u8_t *analogIpTableDefault[1024] = 
+{
+    "172.18.5.1",
+    "172.18.5.2"
+
+};
+#endif
+/* 2018-06-13 changzehai(DTT) ----------------------------------- ADD End   -*/
+
+extern u8_t Oid_Len;
+
+void snmpInit(void)
+{
+   	u8_t* buffzz;
+   	u16_t i;
+	u16_t temp;
+	u16_t configTemp;
+
+	u8_t i_dc = 1;
+	u8_t i_op = 1;
+        u8_t temp_bit = 0;
+	#if OS_CRITICAL_METHOD == 3
+    OS_CPU_SR cpu_sr;
+    #endif 
+
+//
+//!snmp_context.
+//
+   	memcpy(snmp_Context, &g_sParameters.CommunityStr, 16);         				//社区串
+//
+//! commonNESerialNumber.
+//
+   	memcpy(commonNESerialNumber, &g_sParameters.Serial, 12); 				//设备序列号
+//
+//! manufacture.
+//        
+   	memcpy(commonNEVendor, &g_sParameters.Manufacturer, DEVICE_INFO_LEN);  				//生产商
+//
+//! model.
+        
+   	memcpy(commonNEModelNumber, &g_sParameters.Model, DEVICE_INFO_LEN);  		   		//设备型号
+//
+//! logical ID /MODEL.
+//
+   	memcpy(commonNELogicalID, &g_sParameters.Model, 16); //逻辑ID
+
+//
+//! common network address.
+//	
+	
+        commonNetworkAddress[0] =  (g_sParameters.ulStaticIP>>24)&0xff;
+        commonNetworkAddress[1] =  (g_sParameters.ulStaticIP>>16)&0xff;
+        commonNetworkAddress[2] =  (g_sParameters.ulStaticIP>>8)&0xff;
+        commonNetworkAddress[3] =   g_sParameters.ulStaticIP&0xff;
+	
+//
+//! alarm detection control enable        
+//        
+   	commonAlarmDetectionControl = 2;
+//
+//	OSTimeDlyHMSM(0,0,1,500);//等待保证采样到一次完整的轮询数据
+//
+        commonNetworkPort = g_sParameters.TrapPort;
+        
+        fnRegateNumber = g_sParameters.rgcnt;
+        fnRegateDelay1 = g_sParameters.delay1;
+        fnRegateDelay2 = g_sParameters.delay2;
+        fnRegateDelay3 = g_sParameters.delay3;
+        
+        if(g_sParameters.remote_cmd & 0x01)
+           temp_bit = 1;
+        else
+           temp_bit = 0;
+        
+        fnACoutputSWTable[0].fnACOutputSWEnable = temp_bit;
+        
+        if(g_sParameters.remote_cmd & 0x02)
+           temp_bit = 1;
+        else
+           temp_bit = 0;
+        
+        fnACoutputSWTable[1].fnACOutputSWEnable = temp_bit;
+        
+        if(g_sParameters.remote_cmd & 0x04)
+           temp_bit = 1;
+        else
+           temp_bit = 0;
+        
+        fnACoutputSWTable[2].fnACOutputSWEnable = temp_bit;
+        
+        if(g_sParameters.remote_cmd & 0x08)
+           temp_bit = 1;
+        else
+           temp_bit = 0;
+        
+        fnACoutputSWTable[3].fnACOutputSWEnable = temp_bit;
+        
+        if(g_sParameters.ucFlags & SNTP_EN_FLAG)
+          temp_bit = 1;
+        else
+          temp_bit = 0;
+          
+        fnSntpEn = temp_bit;
+        
+        fnSntpInter = g_sParameters.SNTPInterval;
+        
+        
+
+//	//初始化模拟属性表、离散属性表--------------------------
+/* 2018-06-13 changzehai(DTT) ----------------------------------- MOD Start -*/
+//
+//   	for (i=0; i<analogPropertyNO; i++)
+//   	{
+//		analogPropertyTable[i].analogParameterOID[0] = 0x01;
+//		analogPropertyTable[i].analogParameterOID[1] = 0x03;
+//		analogPropertyTable[i].analogParameterOID[2] = 0x06;
+//		analogPropertyTable[i].analogParameterOID[3] = 0x01;
+//		analogPropertyTable[i].analogParameterOID[4] = 0x04;
+//		analogPropertyTable[i].analogParameterOID[5] = 0x01;
+//		analogPropertyTable[i].analogParameterOID[6] = 0x82;
+//		analogPropertyTable[i].analogParameterOID[7] = 0xb9;
+//		analogPropertyTable[i].analogParameterOID[8] = 0x6c;
+//		analogPropertyTable[i].analogParameterOID[9] = 1;
+//
+//		if(i==0)						//Input ac voltage
+//		{
+//			analogPropertyTable[i].analogParameterOID[10] = 10;
+//			analogPropertyTable[i].analogParameterOID[11] = 2;
+//			analogPropertyTable[i].analogParameterOID[12] = 0;
+//			analogPropertyTable[i].analogParameterOID[13] = 0xff;
+//			analogPropertyTable[i].analogParameterOID[14] = 0xff;
+//                        
+//                        analogPropertyTable[i].alarmEnable[0] = 0x06; //hi lo alarm.
+//                        analogPropertyTable[i].analogAlarmHIHI = g_sParameters.OverVoltage; //hi hi value.
+//                        analogPropertyTable[i].analogAlarmHI = g_sParameters.OverVoltage;   //hi value.
+//                        analogPropertyTable[i].analogAlarmLO= g_sParameters.UVLO;          //lo value.
+//                        analogPropertyTable[i].analogAlarmLOLO = g_sParameters.UVLO;        //lo lo value.
+//                        analogPropertyTable[i].analogAlarmDeadband = g_sParameters.VoltageDeadBand;//voltage dead band.
+//			                       
+//		}
+//		else if(i==1)                                         //leakage current
+//		{
+//			analogPropertyTable[i].analogParameterOID[10] = 10;
+//			analogPropertyTable[i].analogParameterOID[11] = 3;
+//			analogPropertyTable[i].analogParameterOID[12] = 0;
+//			analogPropertyTable[i].analogParameterOID[13] = 0xff;
+//			analogPropertyTable[i].analogParameterOID[14] = 0xff;
+//
+//			analogPropertyTable[i].alarmEnable[0] = 0x04; //hi  alarm.
+//                        analogPropertyTable[i].analogAlarmHIHI = g_sParameters.LeakCurrent; //hi hi value.
+//                        analogPropertyTable[i].analogAlarmHI = g_sParameters.LeakCurrent;   //hi value.
+//                       
+//                        analogPropertyTable[i].analogAlarmDeadband = 200;//leakage current dead band.
+//		}
+//		else if(i==2)                                        //work current
+//		{
+//			analogPropertyTable[i].analogParameterOID[10] = 10;
+//			analogPropertyTable[i].analogParameterOID[11] = 4;
+//			analogPropertyTable[i].analogParameterOID[12] = 0;
+//			analogPropertyTable[i].analogParameterOID[13] = 0xff;
+//			analogPropertyTable[i].analogParameterOID[14] = 0xff;
+//                       
+//                        analogPropertyTable[i].alarmEnable[0] = 0x04; //hi  alarm.
+//                       
+//                        analogPropertyTable[i].analogAlarmHIHI = g_sParameters.OverCurrent; //hi hi value.
+//                        analogPropertyTable[i].analogAlarmHI = g_sParameters.OverCurrent;   //hi value.
+//                       
+//                        analogPropertyTable[i].analogAlarmDeadband = g_sParameters.CurrentDeadBand;//work current dead band.
+//		}
+//		
+//
+//      	        analogPropertyTable[i].analogAlarmState = 1;
+//
+//	}
+//        for (i=0; i<discretePropertyNO; i++)
+//   	{
+//            discretePropertyTable[i].discreteParameterOID[0] = 0x01;
+//            discretePropertyTable[i].discreteParameterOID[1] = 0x03;
+//            discretePropertyTable[i].discreteParameterOID[2] = 0x06;
+//            discretePropertyTable[i].discreteParameterOID[3] = 0x01;
+//            discretePropertyTable[i].discreteParameterOID[4] = 0x04;
+//            discretePropertyTable[i].discreteParameterOID[5] = 0x01;
+//            discretePropertyTable[i].discreteParameterOID[6] = 0x82;
+//            discretePropertyTable[i].discreteParameterOID[7] = 0xb9;
+//            discretePropertyTable[i].discreteParameterOID[8] = 0x6c;
+//            discretePropertyTable[i].discreteParameterOID[9] = 0x01;
+//            if(i==0)
+//            {
+//                  discretePropertyTable[i].discreteParameterOID[10] = 0x0a;//channel 1 output status
+//                  discretePropertyTable[i].discreteParameterOID[11] = 0x0a;
+//                  discretePropertyTable[i].discreteParameterOID[12] = 0x01;
+//                  discretePropertyTable[i].discreteParameterOID[13] = 0x06;
+//                  discretePropertyTable[i].discreteParameterOID[14] = 0x00;
+//            }
+//            else if(i==1)
+//            {
+//                  discretePropertyTable[i].discreteParameterOID[10] = 0x0a;//channel 2 output status
+//                  discretePropertyTable[i].discreteParameterOID[11] = 0x0a;
+//                  discretePropertyTable[i].discreteParameterOID[12] = 0x01;
+//                  discretePropertyTable[i].discreteParameterOID[13] = 0x06;
+//                  discretePropertyTable[i].discreteParameterOID[14] = 0x01;
+//            }
+//            else if(i==2)
+//            {
+//                  discretePropertyTable[i].discreteParameterOID[10] = 0x0a;//channel 3 output status
+//                  discretePropertyTable[i].discreteParameterOID[11] = 0x0a;
+//                  discretePropertyTable[i].discreteParameterOID[12] = 0x01;
+//                  discretePropertyTable[i].discreteParameterOID[13] = 0x06;
+//                  discretePropertyTable[i].discreteParameterOID[14] = 0x02;
+//            }
+//            else if(i==3)
+//            {
+//                  discretePropertyTable[i].discreteParameterOID[10] = 0x0a;//channel 4 output status
+//                  discretePropertyTable[i].discreteParameterOID[11] = 0x0a;
+//                  discretePropertyTable[i].discreteParameterOID[12] = 0x01;
+//                  discretePropertyTable[i].discreteParameterOID[13] = 0x06;
+//                  discretePropertyTable[i].discreteParameterOID[14] = 0x03;
+//            }
+//            else if(i==4)
+//            {
+//                  discretePropertyTable[i].discreteParameterOID[10] = 0x0a;//Grouded status
+//                  discretePropertyTable[i].discreteParameterOID[11] = 0x0e;
+//                  discretePropertyTable[i].discreteParameterOID[12] = 0x00;
+//                  discretePropertyTable[i].discreteParameterOID[13] = 0xff;
+//                  discretePropertyTable[i].discreteParameterOID[14] = 0xff;
+//            }
+//            else if(i==5)
+//            {
+//                  discretePropertyTable[i].discreteParameterOID[10] = 0x0a;//Line Sequence status
+//                  discretePropertyTable[i].discreteParameterOID[11] = 0x0f;
+//                  discretePropertyTable[i].discreteParameterOID[12] = 0x00;
+//                  discretePropertyTable[i].discreteParameterOID[13] = 0xff;
+//                  discretePropertyTable[i].discreteParameterOID[14] = 0xff;
+//            }
+//            else if(i==6)
+//            {
+//                  discretePropertyTable[i].discreteParameterOID[10] = 0x0a;//Light protected status
+//                  discretePropertyTable[i].discreteParameterOID[11] = 0x10;
+//                  discretePropertyTable[i].discreteParameterOID[12] = 0x00;
+//                  discretePropertyTable[i].discreteParameterOID[13] = 0xff;
+//                  discretePropertyTable[i].discreteParameterOID[14] = 0xff;
+//            }
+//             else if(i==7)
+//            {
+//                  discretePropertyTable[i].discreteParameterOID[10] = 0x0a;//Lamp status
+//                  discretePropertyTable[i].discreteParameterOID[11] = 0x11;
+//                  discretePropertyTable[i].discreteParameterOID[12] = 0x00;
+//                  discretePropertyTable[i].discreteParameterOID[13] = 0xff;
+//                  discretePropertyTable[i].discreteParameterOID[14] = 0xff;
+//            }
+//
+//           discretePropertyTable[i].discreteAlarmValue= 0;		//alarm value
+//           discretePropertyTable[i].discreteAlarmState = 1; 	       //dasNominal
+//           discretePropertyTable[i].discreteAlarmEnable = 0x03;        //enable minor
+//        }
+//        //-----------------------------------------------------
+//       for (i=0; i<fnNumberOutput; i++)
+//       {
+//        memcpy(fnACoutputSWTable[i].fnACChannelName, Str_fnChannelName[i],3); 
+//        fnACoutputSWTable[i].fnACOutputSWIndex = i;
+//       }
+
+
+		analogPropertyTable.analogParameterOID[0] = 0x01;
+		analogPropertyTable.analogParameterOID[1] = 0x03;
+		analogPropertyTable.analogParameterOID[2] = 0x06;
+		analogPropertyTable.analogParameterOID[3] = 0x01;
+		analogPropertyTable.analogParameterOID[4] = 0x04;
+		analogPropertyTable.analogParameterOID[5] = 0x01;
+		analogPropertyTable.analogParameterOID[6] = 0x82;
+		analogPropertyTable.analogParameterOID[7] = 0xb9;
+		analogPropertyTable.analogParameterOID[8] = 0x6c;
+		analogPropertyTable.analogParameterOID[9] = 1;
+		analogPropertyTable.analogParameterOID[10] = 10;
+		analogPropertyTable.analogParameterOID[11] = 2;
+		analogPropertyTable.analogParameterOID[12] = 0;
+		analogPropertyTable.analogParameterOID[13] = 0xff;
+		analogPropertyTable.analogParameterOID[14] = 0xff;
+            
+        
+        /* 初始化IP Table */
+#if 0
+        memset(analogPropertyTable.analogIpTable, 0x00, sizeof(analogPropertyTable.analogIpTable));
+        for (i = 0; i < 1024; i++)
+        {
+            strcpy(analogPropertyTable.analogIpTable[i].ip, "172.168.5.100"); /* TODO*/     
+        }
+#endif
+
+/* 2018-06-13 changzehai(DTT) ----------------------------------- MOD End   -*/ 
+	//-------------------------------------------------------
+	Oid_Len = 3;	
+	ussSNMPAgentInit();
+}

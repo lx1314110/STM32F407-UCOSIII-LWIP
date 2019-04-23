@@ -1,0 +1,1241 @@
+TW2-11-MIB DEFINITIONS ::= BEGIN
+
+     IMPORTS
+          OBJECT-TYPE
+               FROM RFC-1212
+          DisplayString
+               FROM RFC1213-MIB 
+          enterprises
+               FROM RFC1155-SMI 
+     ; 
+     
+--
+-- MIB 扩充
+--
+
+aceRoot  OBJECT IDENTIFIER ::= { enterprises 8519 }
+
+-- DESCRIPTION
+--     "ACERoot定义ACE公司MIB根节点。"
+
+aceHFCemsTree  OBJECT IDENTIFIER  ::= { aceRoot 1 }
+
+-- DESCRIPTION
+--     "ACEHFCemsTree定义ACE公司HFC网络设备管理系统MIB扩充根节点,"
+
+fnAceIdent OBJECT IDENTIFIER ::= { aceHFCemsTree 10}
+
+--     DESCRIPTION
+--     " 光节点MIB的扩充分支节点标识。"
+
+--/////////////////////////////////////////////////////////////////////////////
+fnAceCommonShake OBJECT-TYPE
+     SYNTAX INTEGER { normal(1), alarm(2) }
+     ACCESS read-only
+     STATUS optional
+     DESCRIPTION 
+		"光站整机设备震动告警检测，normal表示正常,alarm表示告警"
+     ::= { fnAceIdent 1 }
+
+--////////////////////////////////////////////////////////////////////////////
+fnAceNumberReturnLaser OBJECT-TYPE
+     SYNTAX INTEGER ( 0..16 )
+     ACCESS read-only
+     STATUS mandatory
+     DESCRIPTION
+"光节点上行光发送机信息表的条目数，‘0’表示设备无此功能。"
+     ::= { fnAceIdent 2 }
+
+fnAceReturnLaserTable OBJECT-TYPE
+     SYNTAX SEQUENCE OF FnAceReturnLaserEntry
+     ACCESS not-accessible
+     STATUS mandatory
+     DESCRIPTION
+"光节点上行光发送机信息表。"
+     ::= { fnAceIdent 3 }
+
+fnAceReturnLaserEntry OBJECT-TYPE
+     SYNTAX FnAceReturnLaserEntry
+     ACCESS not-accessible
+     STATUS mandatory
+     DESCRIPTION
+"上行光发送机表目。"
+     INDEX { fnAceReturnLaserIndex }
+     ::= { fnAceReturnLaserTable 1 }
+
+FnAceReturnLaserEntry ::=
+     SEQUENCE
+     {
+          fnAceReturnLaserIndex
+               INTEGER,
+          fnAceOtLaserControl
+               INTEGER,
+          fnAceOtRfogControl
+               INTEGER,
+          fnAceOtApcControl
+               INTEGER,
+          fnAceOtChanelRead
+               INTEGER,
+     }
+
+fnAceReturnLaserIndex OBJECT-TYPE
+     SYNTAX INTEGER
+     ACCESS read-only
+     STATUS mandatory
+     DESCRIPTION
+"上行光发送机索引号，可以是上行光发送机设备的序号或是插槽编号。"
+    ::= { fnAceReturnLaserEntry 1 }
+
+fnAceOtLaserControl OBJECT-TYPE
+     SYNTAX INTEGER { on(1), off(2) }
+     ACCESS read-write
+     STATUS mandatory
+     DESCRIPTION 
+		"上行光发送模块激光器开关控制，on表示打开，off表示关闭"
+     ::= { fnAceReturnLaserEntry 2}   
+
+fnAceOtRfogControl OBJECT-TYPE
+     SYNTAX INTEGER { enable(1), disable(2) }
+     ACCESS read-write
+     STATUS mandatory
+     DESCRIPTION 
+		"上行光发送模块RFOG功能控制，enable表示使能，disable表示失能"
+     ::= { fnAceReturnLaserEntry 3}
+     
+fnAceOtApcControl OBJECT-TYPE
+     SYNTAX INTEGER { enable(1), disable(2) }
+     ACCESS read-write
+     STATUS mandatory
+     DESCRIPTION 
+		"上行光发送模块APC功能控制，enable表示使能，disable表示失能"
+     ::= { fnAceReturnLaserEntry 4}
+     
+fnAceOtChanelRead OBJECT-TYPE
+     SYNTAX INTEGER { a(1), b(2),c(3) }
+     ACCESS read-only
+     STATUS mandatory
+     DESCRIPTION 
+		"上行光发送模块工作通道回传方式配置，
+		a表示:四路反向混合/一个反向光发：传统方式回传
+		b表示:四路反向两两混合/两个反向光发：回传用户缩小1/2
+		c表示:四路反向/四个反向光发：回传用户缩小1/4"
+     ::= { fnAceReturnLaserEntry 5 }  
+
+--///////////////////////////////////////////////////////////////////////////
+
+fnAceNumberOpticalReceiver OBJECT-TYPE
+     SYNTAX INTEGER ( 0..16 )
+     ACCESS read-only
+     STATUS mandatory
+     DESCRIPTION
+"下行光接收机表中的条目数，‘0’表示设备无此功能。"
+     ::= { fnAceIdent 4 }
+
+fnAceOpticalReceiverTable OBJECT-TYPE
+     SYNTAX SEQUENCE OF FnAceOpticalReceiverEntry
+     ACCESS not-accessible
+     STATUS mandatory
+     DESCRIPTION
+"下行光接收机表。"
+     ::= { fnAceIdent 5}
+
+fnAceOpticalReceiverEntry OBJECT-TYPE
+     SYNTAX FnAceOpticalReceiverEntry
+     ACCESS not-accessible
+     STATUS mandatory
+     DESCRIPTION
+"下行光接收机表目。"
+     INDEX { fnAceOpticalReceiverIndex }
+     ::= { fnAceOpticalReceiverTable 1 }
+
+FnAceOpticalReceiverEntry ::=
+     SEQUENCE
+     {
+          fnAceOpticalReceiverIndex
+               INTEGER,
+          fnAceOrLevelControl
+               INTEGER,
+          fnAceOrGainControl
+               INTEGER,
+          fnAceOrChanelRead
+               INTEGER
+     }
+
+fnAceOpticalReceiverIndex OBJECT-TYPE
+     SYNTAX INTEGER
+     ACCESS read-only
+     STATUS mandatory
+     DESCRIPTION
+"下行光接收机索引号，可以是下行光接收机设备的序号或者是插槽编号。"
+     ::= { fnAceOpticalReceiverEntry 1 }
+     
+fnAceOrLevelControl OBJECT-TYPE
+     SYNTAX INTEGER { add(1), sub(2) }
+     ACCESS read-write
+     STATUS mandatory
+     DESCRIPTION 
+		"下行光接收模块输出电平调节控制，write时add表示衰减值加0.5dBm，sub表示衰减值减0.5dBm
+		读时返回具体的衰减值的10倍"
+     ::= { fnAceOpticalReceiverEntry 2 }  
+
+fnAceOrGainControl OBJECT-TYPE
+     SYNTAX INTEGER { agc(1), mgc(2) }
+     ACCESS read-write
+     STATUS mandatory
+     DESCRIPTION 
+		"下行光接收模块增益方式控制"
+     ::= { fnAceOpticalReceiverEntry 3 } 
+     
+fnAceOrChanelRead OBJECT-TYPE
+     SYNTAX INTEGER { a(1), b(2),c(3),d(4), e(5) }
+     ACCESS read-only
+     STATUS mandatory
+     DESCRIPTION 
+		"下行光接收模块工作通道接收方式配置,
+		a表示:单路接收/四路分配输出：传统接收方式
+		b表示:双路接收/四路分配输出：传统备份接收方式
+		c表示:双路接收/双路直接输出：下行用户缩小1/2方式接收
+		d表示:四路接收/双路直接输出：下行用户缩小1/2备份方式接收
+		e表示:四路接收/四路直接输出：下行用户缩小1/4方式接收"
+     ::= { fnAceOpticalReceiverEntry 4 }
+------------------------------------------------------------------------------------------------------------------------------     
+       
+--
+-- 根目录节点
+--
+
+nscrtvRoot  OBJECT IDENTIFIER ::= { enterprises 17409 }
+
+-- DESCRIPTION
+--     "nscrtvRoot定义全国广播电视标准化技术委员会MIB根节点。"
+
+nscrtvHFCemsTree  OBJECT IDENTIFIER  ::= { nscrtvRoot 1 }
+
+-- DESCRIPTION
+--     "nscrtvHFCemsTree定义HFC网络设备管理系统MIB根节点,"
+--     "所有HFC网络设备管理系统的MIB均应在该节点下定义。"
+
+--
+-- 属性(Property)MIB的分支节点
+--
+
+propertyIdent OBJECT IDENTIFIER ::= { nscrtvHFCemsTree 1}
+
+-- DESCRIPTION
+--     "属性(Property)MIB的分支节点标识。"
+
+-- *
+-- * 模拟属性表	 
+-- *
+
+analogPropertyTable  OBJECT-TYPE
+	SYNTAX SEQUENCE OF AnalogPropertyEntry
+	ACCESS	not-accessible
+	STATUS	mandatory
+	DESCRIPTION 
+		"模拟参数属性表。"
+	::= { propertyIdent 1 }
+
+analogPropertyEntry  OBJECT-TYPE
+	SYNTAX 	AnalogPropertyEntry
+	ACCESS	not-accessible
+	STATUS	mandatory
+	DESCRIPTION 
+	    "模拟参数属性表目。"
+--	     OID作为表目的索引，其编码方法是"长度＋OID"。OID的前2个成员"1.3"是按"1"和"3"分别编码，而不是普通OID编码方式(0x2B)。
+	INDEX	{ analogParameterOID }
+	::= { analogPropertyTable 1 }
+
+AnalogPropertyEntry ::= SEQUENCE {
+	analogParameterOID
+		OBJECT IDENTIFIER,
+	alarmEnable
+		OCTET STRING,
+	analogAlarmState
+		INTEGER,
+	analogAlarmHIHI
+		INTEGER,
+	analogAlarmHI
+		INTEGER,
+	analogAlarmLO
+		INTEGER,
+	analogAlarmLOLO
+		INTEGER,
+	analogAlarmDeadband
+		INTEGER
+}
+
+analogParameterOID  OBJECT-TYPE
+	SYNTAX 	OBJECT IDENTIFIER
+	ACCESS	read-only
+	STATUS	mandatory
+	DESCRIPTION 
+		"索引。"	          
+
+	::= { analogPropertyEntry 1 }
+
+alarmEnable  OBJECT-TYPE
+	SYNTAX 	OCTET STRING (SIZE(1))
+	ACCESS	read-write
+	STATUS	mandatory
+	DESCRIPTION 
+		"告警使能控制字节，对应位为‘1’表示允许告警,‘0’表示禁止告警
+		        Bit 0 : 极低告警使能
+		        Bit 1 : 低告警使能
+		        Bit 2 : 高告警使能
+		        Bit 3 : 极高告警使能
+		        Bit 4～7 保留,应为0 
+		此对象应保存在非易失性存储器中。"
+		
+	::= { analogPropertyEntry 2 }
+
+analogAlarmState  OBJECT-TYPE
+	SYNTAX 	INTEGER {
+		aasNominal (1),
+		aasHIHI (2),
+		aasHI (3),
+		aasLO (4),
+		aasLOLO (5)
+	}
+	ACCESS	read-only
+	STATUS	mandatory
+	DESCRIPTION 
+		"参数的当前告警状态。"
+	::= { analogPropertyEntry 3 }
+
+analogAlarmHIHI  OBJECT-TYPE
+	SYNTAX 	INTEGER 
+	ACCESS	read-write
+	STATUS	mandatory
+	DESCRIPTION 
+		"极高告警门限HIHI的值。此对象应保存在非易失性存储器中。"
+	::= { analogPropertyEntry 4 }
+
+analogAlarmHI  OBJECT-TYPE
+	SYNTAX 	INTEGER 
+	ACCESS	read-write
+	STATUS	mandatory
+	DESCRIPTION 
+		"高告警门限HI的值。此对象应保存在非易失性存储器中。"
+	::= { analogPropertyEntry 5 }
+
+analogAlarmLO  OBJECT-TYPE
+	SYNTAX 	INTEGER 
+	ACCESS	read-write
+	STATUS	mandatory
+	DESCRIPTION 
+		"低告警门限LO的值。此对象应保存在非易失性存储器中。"
+	::= { analogPropertyEntry 6 }
+
+analogAlarmLOLO  OBJECT-TYPE
+	SYNTAX 	INTEGER 
+	ACCESS	read-write
+	STATUS	mandatory
+	DESCRIPTION 
+		"极低告警门限LOLO的值。此对象应保存在非易失性存储器中。"
+	::= { analogPropertyEntry 7 }
+
+analogAlarmDeadband  OBJECT-TYPE
+	SYNTAX 	INTEGER
+	ACCESS	read-write
+	STATUS	mandatory
+	DESCRIPTION 
+	"告警门限死区的值。
+	告警产生后，参数值应恢复到告警门限内且与告警门限之差的绝对值大于死区值，该告警才能清除。
+		此对象应保存在非易失性存储器中。"
+	::= { analogPropertyEntry 8 }
+
+-- *
+-- * 离散属性表
+-- * 离散属性表的记录数量是固定的，每个离散型参数的每一个需要进行告警处理的值在离散属
+-- * 性表中均对应一条记录，每个离散型参数在离散属性表中至少对应有一条记录。
+-- * 离散属性表有2个索引：一个是参数标识（OID），另一个是离散告警值（discreteAlarmValue）。
+-- *
+
+discretePropertyTable  OBJECT-TYPE
+	SYNTAX SEQUENCE OF DiscretePropertyEntry
+	ACCESS	not-accessible
+	STATUS	mandatory
+	DESCRIPTION 
+		"离散属性表。"
+	::= { propertyIdent 2 }
+
+discretePropertyEntry  OBJECT-TYPE
+	SYNTAX 	DiscretePropertyEntry
+	ACCESS	not-accessible
+	STATUS	mandatory
+	DESCRIPTION 
+		"离散属性表目。OID的编码方式同模拟属性表。"
+	INDEX	{ discreteParameterOID, discreteAlarmValue }
+	::= { discretePropertyTable 1 }
+
+DiscretePropertyEntry ::= SEQUENCE {
+	discreteParameterOID
+		OBJECT IDENTIFIER,
+	discreteAlarmValue
+		INTEGER,
+	discreteAlarmEnable
+		INTEGER,
+	discreteAlarmState
+		INTEGER
+}
+
+discreteParameterOID  OBJECT-TYPE
+	SYNTAX 	OBJECT IDENTIFIER
+	ACCESS	read-only
+	STATUS	mandatory
+	DESCRIPTION 
+		"离散属性表的索引1：参数OID。"
+	::= { discretePropertyEntry 1 }
+
+discreteAlarmValue  OBJECT-TYPE
+	SYNTAX 	INTEGER
+	ACCESS	read-only
+	STATUS	mandatory
+	DESCRIPTION 
+		"离散属性表的索引2：参数值。
+		当设备的参数值等于此值，将进行告警处理。"
+	::= { discretePropertyEntry 2 }
+
+
+discreteAlarmEnable  OBJECT-TYPE
+	SYNTAX 	INTEGER {
+		disable (1),
+		enableMajor (2),
+		enableMinor (3)
+	}
+	ACCESS	read-write
+	STATUS	mandatory
+	DESCRIPTION 
+		"当告警使能打开(2或3)，允许进行此参数的告警处理。
+		如果告警使能关闭(1)，则告警处理不会进行。
+		此对象缺省值为disable(1)。
+		此对象应保存在非易失性存储器中。"
+	::= { discretePropertyEntry 3 }
+
+discreteAlarmState  OBJECT-TYPE
+	SYNTAX 	INTEGER {
+		dasNominal(1),
+		dasDiscreteMajor(6),
+		dasDiscreteMinor(7)
+	}
+	ACCESS	read-only
+	STATUS	mandatory
+	DESCRIPTION 
+		"参数的当前告警状态。"
+	::= { discretePropertyEntry 4 }
+
+
+-- * 
+-- * 当前告警表包含了NE当前处于"激活"状态的告警项(0项或多项)。
+-- * 虽然模拟属性表和离散属性表中也包括了告警状态信息，但是管理者应遍历全表才能
+-- * 完全确定NE的告警状态，在效率上比较低。而当前告警表的作用就是将这2张表中处于告警
+-- * 状态的那些项进行了汇总，便于管理者进行检索。
+-- * 建议管理者程序使用GetNext命令(从表头OID开始)遍历这张表来获取NE所有的告警信息。
+-- * HFC网络正常工作时，当前告警表的内容为空。
+-- * 
+
+currentAlarmTable  OBJECT-TYPE
+	SYNTAX SEQUENCE OF CurrentAlarmEntry
+	ACCESS	not-accessible
+	STATUS	mandatory
+	DESCRIPTION 
+		"当前告警表。"
+	::= { propertyIdent 3 }
+
+currentAlarmEntry  OBJECT-TYPE
+	SYNTAX 	CurrentAlarmEntry
+	ACCESS	not-accessible
+	STATUS	mandatory
+	DESCRIPTION 
+		"当前告警表目。
+		OID的编码方式同模拟属性表。"
+	INDEX	{ currentAlarmOID }
+	::= { currentAlarmTable 1 }
+
+CurrentAlarmEntry ::= SEQUENCE {
+	currentAlarmOID
+		OBJECT IDENTIFIER,
+	currentAlarmState
+		INTEGER,
+	currentAlarmValue
+		INTEGER		
+        }
+
+currentAlarmOID  OBJECT-TYPE
+	SYNTAX 	OBJECT IDENTIFIER
+	ACCESS	read-only
+	STATUS	mandatory
+	DESCRIPTION 
+		"NE当前处于告警状态的参数OID索引,
+		与属性表中的告警参数OID对应。"
+	::= { currentAlarmEntry 1 }
+
+currentAlarmState  OBJECT-TYPE
+	SYNTAX 	INTEGER {
+		caasHIHI (2),
+		caasHI (3),
+		caasLO (4),
+		caasLOLO (5),
+		caasDiscreteMajor (6),
+		caasDiscreteMinor (7)		
+	}
+	ACCESS	read-only
+	STATUS	mandatory
+	DESCRIPTION 
+		"告警参数的当前告警状态。"
+	::= { currentAlarmEntry 2 }
+             
+currentAlarmValue  OBJECT-TYPE
+	SYNTAX 	INTEGER
+	ACCESS	read-only
+	STATUS	mandatory
+	DESCRIPTION 
+		"告警参数的值。"
+	::= { currentAlarmEntry 3 }
+
+--
+-- 公用(Common)MIB的分支节点
+--
+
+commonIdent   OBJECT IDENTIFIER ::= { nscrtvHFCemsTree 3}
+
+--     DESCRIPTION
+--     "公用(Common)MIB的分支节点标识。"
+
+-- *
+-- *  Common MIB中使用的分组定义
+-- * 
+
+commonAdminGroup	OBJECT IDENTIFIER ::= { commonIdent 1 }
+
+-- *************
+-- *   NE管理组
+-- *************
+
+commonNELogicalID  OBJECT-TYPE
+     SYNTAX OCTET STRING (SIZE(0..40))
+     ACCESS read-write
+     STATUS mandatory
+     DESCRIPTION 
+	   "指定NE的逻辑标识符（LogicID），
+	   此值一般与NE的其他属性无关。
+	   此对象值应存放在非易失性存储器中。"
+     ::= { commonAdminGroup 1 }
+
+commonNEVendor  OBJECT-TYPE
+     SYNTAX DisplayString (SIZE(0..255))
+     ACCESS read-only
+     STATUS mandatory
+     DESCRIPTION 
+	   "NE设备生产厂家。"
+     ::= { commonAdminGroup 2 }
+
+commonNEModelNumber  OBJECT-TYPE
+     SYNTAX DisplayString (SIZE(0..255))
+     ACCESS read-only
+     STATUS mandatory
+     DESCRIPTION 
+           "NE设备的型号。"
+     ::= { commonAdminGroup 3 }
+
+commonNESerialNumber  OBJECT-TYPE
+     SYNTAX DisplayString (SIZE(0..255))
+     ACCESS read-only
+     STATUS mandatory
+     DESCRIPTION 
+	   "NE设备的序列号。"
+     ::= { commonAdminGroup 4 }
+
+commonAlarmDetectionControl OBJECT-TYPE
+     SYNTAX INTEGER {
+        detectionDisabled (1),
+        detectionEnabled (2),
+        detectionEnabledAndRegenerate (3)
+     }
+    ACCESS read-write
+    STATUS mandatory
+    DESCRIPTION 
+        "此对象用于控制NE的告警检测。
+         当模拟属性表或离散属性表中的一个MIB对象达到设定的门限，就认为告警已发生，并且作为最新的告警记录在告警记录表（alarmLogTable）中添加一项，告警陷阱将同时产生。如有一个MIB对象的值不在正常状态，则在当前告警表（currentAlarmTable）中也会添加一项记录。
+          
+         detectionDisabled(1)将停止与模拟属性表/离散属性表相关的告警检测过程，NE将不再产生告警。detectionEnabled(2)允许告警检测进行，检测从detectionEnabled被设置之前应答器所处的状态开始继续进行。
+
+         detectionEnabledAndRegenerate(3)清除所有告警信息并且允许告警检测进行。模拟属性表和离散属性表的所有告警属性将恢复到告警检测运行之前的正常值上。任何仍处于告警状态的属性将不会产生“恢复正常”告警，设置此值将清除告警记录表alarmLogTable和当前告警表currentAlarmTable的内容。
+        
+         detectionEnabledAndRegenerate的作用是临时的，当将commonAlarmDetectionControl设置为detectionEnabledAndRegnerate后，其SNMP应答包含此值，以后如果再读此对象值时，响应为detectionEnabled。
+        
+         detectionDisabled值不影响hfcColdStart 或hfcWarmStart 陷阱的产生。
+         将来新增的陷阱除非在其描述中有专门规定，否则一律不受此对象的影响。
+
+         此对象应保存在非易失性存储器中，缺省值为detectionEnabled。" 
+    ::= { commonAdminGroup 8 }
+
+commonNetworkAddress  OBJECT-TYPE
+     SYNTAX NetworkAddress
+     ACCESS read-only
+     STATUS mandatory
+     DESCRIPTION 
+	   "NE的网络IP地址，
+	   NE产生Trap时应包含此地址。此值应保存在非易失性存储器中。此值可以在注册时通过MAC命令或通过厂商的本地接口来设置。"
+     ::= { commonAdminGroup 9 }
+     
+commonTamperStatus  OBJECT-TYPE
+     SYNTAX INTEGER { intact (1), compromised (2) }
+     ACCESS read-only
+     STATUS optional
+     DESCRIPTION 
+"报告NE设备的安全开关(如盖子是否打开)状态，此对象要求在离散属性表中登记一个条目。intact表示正常，compromised表示告警。"
+     ::= { commonAdminGroup 12 }
+
+commonInternalTemperature  OBJECT-TYPE
+     SYNTAX INTEGER (-128..127)
+     ACCESS read-only
+     STATUS optional
+     DESCRIPTION 
+           "NE设备的室（机）内温度，
+           单位为摄氏度。此对象要求在属性表中对应一个条目。"
+     ::= { commonAdminGroup 13 } 
+     
+--CTW1000
+
+fnIdent  OBJECT IDENTIFIER ::= { nscrtvHFCemsTree 10}
+
+--   DESCRIPTION
+--   "光节点(Fiber Node)MIB的分支节点标识符。"
+     
+fnVendorOID OBJECT-TYPE                   
+     SYNTAX OBJECT IDENTIFIER
+     ACCESS read-only
+     STATUS optional
+     DESCRIPTION 
+"此对象提供厂商对光节点MIB的扩充，无扩充时此对象应指向光节点fnIdent。"
+     ::= { fnIdent 1 }
+
+-- ****************
+-- * 上行光发送机
+-- ****************
+
+fnNumberReturnLaser OBJECT-TYPE
+     SYNTAX INTEGER ( 0..16 )
+     ACCESS read-only
+     STATUS mandatory
+     DESCRIPTION
+"光节点上行光发送机信息表的条目数，‘0’表示设备无此功能。"
+     ::= { fnIdent 2 }
+
+fnReturnLaserTable OBJECT-TYPE
+     SYNTAX SEQUENCE OF FnReturnLaserEntry
+     ACCESS not-accessible
+     STATUS mandatory
+     DESCRIPTION
+"光节点上行光发送机信息表。"
+     ::= { fnIdent 3 }
+
+fnReturnLaserEntry OBJECT-TYPE
+     SYNTAX FnReturnLaserEntry
+     ACCESS not-accessible
+     STATUS mandatory
+     DESCRIPTION
+"上行光发送机表目。"
+     INDEX { fnReturnLaserIndex }
+     ::= { fnReturnLaserTable 1 }
+
+FnReturnLaserEntry ::=
+     SEQUENCE
+     {
+          fnReturnLaserIndex
+               INTEGER,
+          fnReturnLaserCurrent
+               INTEGER,
+--          fnReturnLaserTemp
+--               INTEGER,
+          fnReturnLaserControl
+               INTEGER,
+          fnReturnLaserType
+               DisplayString,
+          fnReturnLaserWavelength
+	           DisplayString,
+          fnReturnLaserOpticalPower
+               INTEGER,
+          fnReturnLaserRFActive
+               INTEGER
+     }
+
+fnReturnLaserIndex OBJECT-TYPE
+     SYNTAX INTEGER
+     ACCESS read-only
+     STATUS mandatory
+     DESCRIPTION
+"上行光发送机索引号，可以是上行光发送机设备的序号或是插槽编号。"
+    ::= { fnReturnLaserEntry 1 }
+
+fnReturnLaserCurrent OBJECT-TYPE
+     SYNTAX INTEGER ( 0..65535 )
+     ACCESS read-only
+     STATUS optional
+     DESCRIPTION
+"上行光发送机偏置电流，单位为mA。此对象要求在属性MIB中登记一个条目。"
+     ::= { fnReturnLaserEntry 2 }
+
+--fnReturnLaserTemp OBJECT-TYPE
+--     SYNTAX INTEGER ( -32768..32767 )
+--     ACCESS read-only
+--     STATUS optional
+--     DESCRIPTION
+--"上行激光器温度，单位为0C。此对象要求在属性MIB中登记一个条目。"
+--     ::= { fnReturnLaserEntry 3 }
+
+fnReturnLaserControl OBJECT-TYPE
+     SYNTAX INTEGER { off(1), on(2) }
+     ACCESS read-write
+     STATUS optional
+     DESCRIPTION
+"上行光发送机控制使能"
+     ::= { fnReturnLaserEntry 4 }
+
+fnReturnLaserType OBJECT-TYPE
+     SYNTAX DisplayString
+     ACCESS read-only
+     STATUS optional
+     DESCRIPTION
+"上行光发送机类型，有效值为：unisolated FP, isolated FP, uncooled DFB, cooled DFB,ITU等。"
+     ::= { fnReturnLaserEntry 5 }
+
+fnReturnLaserWavelength OBJECT-TYPE
+     SYNTAX DisplayString
+     ACCESS read-only
+     STATUS optional
+     DESCRIPTION
+"上行光发送机的波长。"
+     ::= { fnReturnLaserEntry 6 }
+
+fnReturnLaserOpticalPower OBJECT-TYPE
+     SYNTAX INTEGER ( 0..65535 )
+     ACCESS read-only
+     STATUS mandatory
+     DESCRIPTION
+"上行光发送机光功率，单位为0.1毫瓦。此对象要求在属性MIB中登记一个条目。"
+     ::= { fnReturnLaserEntry 7 }
+
+fnReturnLaserRFActive OBJECT-TYPE
+     SYNTAX INTEGER
+     ACCESS read-only
+     STATUS mandatory
+     DESCRIPTION
+"返回与上行光发送机关联的RF工作通道索引。"                  
+     ::= { fnReturnLaserEntry 8 }
+
+
+-- ********************
+-- * 下行光接收机
+-- ********************
+
+fnNumberOpticalReceiver OBJECT-TYPE
+     SYNTAX INTEGER ( 0..16 )
+     ACCESS read-only
+     STATUS mandatory
+     DESCRIPTION
+"下行光接收机表中的条目数，‘0’表示设备无此功能。"
+     ::= { fnIdent 4 }
+
+fnOpticalReceiverTable OBJECT-TYPE
+     SYNTAX SEQUENCE OF FnOpticalReceiverEntry
+     ACCESS not-accessible
+     STATUS mandatory
+     DESCRIPTION
+"下行光接收机表。"
+     ::= { fnIdent 5}
+
+fnOpticalReceiverEntry OBJECT-TYPE
+     SYNTAX FnOpticalReceiverEntry
+     ACCESS not-accessible
+     STATUS mandatory
+     DESCRIPTION
+"下行光接收机表目。"
+     INDEX { fnOpticalReceiverIndex }
+     ::= { fnOpticalReceiverTable 1 }
+
+FnOpticalReceiverEntry ::=
+     SEQUENCE
+     {
+          fnOpticalReceiverIndex
+               INTEGER,
+          fnOpticalReceiverPower
+               INTEGER,
+--          fnOpticalReceiverState
+--               INTEGER,
+          fnOpticalReceiverRFActive
+               INTEGER
+     }
+
+fnOpticalReceiverIndex OBJECT-TYPE
+     SYNTAX INTEGER
+     ACCESS read-only
+     STATUS mandatory
+     DESCRIPTION
+"下行光接收机索引号，可以是下行光接收机设备的序号或者是插槽编号。"
+     ::= { fnOpticalReceiverEntry 1 }
+
+fnOpticalReceiverPower OBJECT-TYPE
+     SYNTAX INTEGER ( 0..65535 )
+     ACCESS read-only
+     STATUS mandatory
+     DESCRIPTION
+"下行光接收机的接收光功率，单位为0.1mW，此对象要求在属性MIB中登记一个条目。"
+     ::= { fnOpticalReceiverEntry 2 }
+
+--fnOpticalReceiverState OBJECT-TYPE								
+--     SYNTAX INTEGER { off(1), on(2) }
+--     ACCESS read-only
+--     STATUS optional
+--     DESCRIPTION
+-- 	     "下行光接收机的控制使能状态。"
+--     ::= { fnOpticalReceiverEntry 3 }
+
+fnOpticalReceiverRFActive OBJECT-TYPE
+     SYNTAX INTEGER
+     ACCESS read-only
+     STATUS mandatory
+     DESCRIPTION
+"返回与下行光接收机关联的RF工作通道索引。"
+     ::= { fnOpticalReceiverEntry 4 }
+
+-- ********
+-- * EDFA
+-- ********
+
+fnOpticalAmpPresent OBJECT-TYPE
+     SYNTAX INTEGER { no(1), yes(2) }
+     ACCESS read-only
+     STATUS mandatory
+     DESCRIPTION
+"表示是否存在光放大器MIB。"
+     ::= { fnIdent 6 }
+
+-- *********************
+-- * 下行RF工作通道
+-- *********************
+
+fnNumberRFActives OBJECT-TYPE           
+     SYNTAX INTEGER ( 1..16 )
+     ACCESS read-only
+STATUS mandatory
+ 
+       DESCRIPTION
+"此光节点中下行RF工作通道数目。
+每个光节点至少应有一个RF工作通道。
+在fnRFPortTable表中，需要将光节点上行激光器RF工作通道（fnReturnLaserRFActive）和光节点下行光接收机RF工作通道（fnOpticalReceiverRFActive）对象映射到同一RF工作通道。
+RF工作通道号的用处是在下行光接收机和RF分配端口之间建立对应关系。
+例子（无意涵盖全部可能的状况）:
+(具有冗余光接收机、单片射频放大的光节点)
+接收机  RF工作通道   RF端口数      上行激光器RF工作通道   下行光接收机RF工作通道     光节点RF分配端口RF工作通道
+a       1            1～4               1                          1                              1
+b       1            1～4               1                          1                              1
+(具有单个光接收机、单片射频放大的小型光节点)
+接收机  RF工作通道   RF端口数      上行激光器RF工作通道   下行光接收机RF工作通道     光节点RF分配端口RF工作通道
+a       1            1～3               1                          1                              1
+(具有两个射频放大部分的大型光节点)
+接收机  RF工作通道   RF端口数      上行激光器RF工作通道   下行光接收机RF工作通道     光节点RF分配端口RF工作通道
+a       1            1～4               1                          1                              1
+b       2            5～8               2                          2                              2
+(每个端口具有独立放大，自下行光接收机到RF输出口由内部电缆连接的大型光节点)
+接收机  RF工作通道   RF端口数      上行激光器RF工作通道   下行光接收机RF工作通道     光节点RF分配端口RF工作通道
+a       1            1～4               1                          1                              1
+b       2            5～8               2                          2                              2
+这样，无论光节点的信号通道多么复杂，都可以用RF工作通道描述。"
+     ::= { fnIdent 7}
+
+fnRFActiveTable OBJECT-TYPE 
+
+     SYNTAX SEQUENCE OF FnRFActiveEntry
+     ACCESS not-accessible
+     STATUS mandatory
+     DESCRIPTION
+"RF工作通道表。"
+     ::= { fnIdent 8}
+
+fnRFActiveEntry OBJECT-TYPE
+     SYNTAX FnRFActiveEntry
+     ACCESS not-accessible
+     STATUS mandatory
+     DESCRIPTION
+"RF工作通道表目。"
+     INDEX { fnRFActiveIndex }
+     ::= { fnRFActiveTable 1 }
+
+FnRFActiveEntry ::=
+     SEQUENCE
+     {
+          fnRFActiveIndex
+               INTEGER,
+          fnRFActiveControlType
+               INTEGER,
+          fnRFActiveOutputLevel
+               INTEGER,
+--          fnRFActiveCurrent
+--               INTEGER,
+--          fnRFActiveControlLevel
+--               INTEGER
+     }
+
+fnRFActiveIndex OBJECT-TYPE
+     SYNTAX INTEGER
+     ACCESS read-only
+     STATUS mandatory
+     DESCRIPTION
+"RF工作通道索引。"
+     ::= { fnRFActiveEntry 1 }
+
+fnRFActiveControlType OBJECT-TYPE
+     SYNTAX INTEGER { alc(1), asc(2), agc(3), none(4) }
+     ACCESS read-only
+     STATUS optional
+     DESCRIPTION
+"RF工作通道控制类型：alc（自动电平控制）,asc（自动斜率控制）,agc（自动增益控制），无固定类型。"
+::= { fnRFActiveEntry 2 }
+
+fnRFActiveOutputLevel OBJECT-TYPE
+     SYNTAX INTEGER ( 0..127 )
+     ACCESS read-only
+     STATUS optional
+     DESCRIPTION
+"RF导频输出电平，单位为dBuV。
+此对象要求在属性MIB中登记一个条目。"
+     ::= { fnRFActiveEntry 3 }
+
+--fnRFActiveCurrent OBJECT-TYPE
+--     SYNTAX INTEGER ( 0..65535 )
+--     ACCESS read-only
+--     STATUS optional
+--     DESCRIPTION
+--          "RF工作通道电流，单位为mA。
+--          此对象要求在属性MIB中登记一个条目。"
+--     ::= { fnRFActiveEntry 4 }
+
+--fnRFActiveControlLevel OBJECT-TYPE
+--      SYNTAX INTEGER
+--      ACCESS read-only
+--      STATUS optional
+--      DESCRIPTION
+--           "该RF工作通道控制类型所指示的控制电平，单位为0.1VDC。
+--            此对象要求在属性MIB中登记一个条目。"
+--     ::= { fnRFActiveEntry 5 }
+
+-- ***********
+-- * RF 端口
+-- ***********
+
+fnNumberRFPort OBJECT-TYPE
+     SYNTAX INTEGER ( 0..16 )
+     ACCESS read-only
+     STATUS mandatory
+     DESCRIPTION
+"RF端口数目，0表示无此功能。"
+     ::= { fnIdent 9 }
+
+--fnPortMasterAttenuationControl OBJECT-TYPE
+--     SYNTAX INTEGER { none(1), low(2), high(3) }
+--     ACCESS read-write
+--     STATUS optional
+--     DESCRIPTION
+--  "报告和控制适用于所有端口的上行通道衰减开关的状态。
+-- none(1): 无衰减；
+-- low(2): 典型的低衰减值；该衰减值可能并不适用于所用端口；
+-- high(3): 典型的高衰减值；该衰减值可能并不适用于所用端口。
+-- 此对象的访问不影响fnRFPortReverseAttenuationControl对象的值"
+--     ::= { fnIdent 10 }
+
+fnRFPortTable OBJECT-TYPE
+     SYNTAX SEQUENCE OF FnRFPortEntry
+     ACCESS not-accessible
+     STATUS mandatory
+     DESCRIPTION
+"RF端口信息表。"
+     ::= { fnIdent 11 }
+
+fnRFPortEntry OBJECT-TYPE
+     SYNTAX FnRFPortEntry
+     ACCESS not-accessible
+     STATUS mandatory
+     DESCRIPTION
+"每个RF端口信息表目。"
+     INDEX { fnRFPortIndex }
+     ::= { fnRFPortTable 1 }
+
+FnRFPortEntry ::=
+     SEQUENCE
+     {
+          fnRFPortIndex
+               INTEGER,
+--          fnRFPortControlType
+--               INTEGER,
+--          fnRFPortControlLevel 
+--               INTEGER,
+          fnRFPortOutputRFLevel
+               INTEGER,
+          fnRFPortRFActive
+               INTEGER,
+          fnRFPortName
+               DisplayString,
+          fnRFPortReverseAttenuationControl
+               INTEGER,
+--		  fnRFPortPowerFeedStatus
+--				INTEGER
+		  
+     }
+
+fnRFPortIndex OBJECT-TYPE
+     SYNTAX INTEGER
+     ACCESS read-only
+     STATUS mandatory
+     DESCRIPTION
+"RF端口索引，索引编号可根据实际应用情况确定，可以表示第几个端口，也可以是端口的编号。"
+     ::= { fnRFPortEntry 1 }
+
+--fnRFPortControlType OBJECT-TYPE
+--     SYNTAX INTEGER { alc(1), asc(2), agc(3), none(4) }
+--     ACCESS read-only
+--     STATUS optional
+--     DESCRIPTION
+-- 	"控制类型：alc（自动电平控制）,asc（自动斜率控制）,agc（自动增益控制），无固定类型。"
+--::= { fnRFPortEntry 2 }
+
+--fnRFPortControlLevel OBJECT-TYPE
+--     SYNTAX INTEGER
+--ACCESS read-only
+--    STATUS optional
+--    DESCRIPTION
+-- "该RF端口控制类型所指示的控制电平，单位为0.1VDC。
+--          此对象要求在属性MIB中登记一个条目。"
+--     ::= { fnRFPortEntry 3 }
+
+fnRFPortOutputRFLevel OBJECT-TYPE
+     SYNTAX INTEGER ( 0..127 )
+     ACCESS read-only
+     STATUS optional
+     DESCRIPTION
+"放大器RF端口的导频输出电平，单位为dBuV。
+此对象要求在属性MIB中登记一个条目。"
+    ::= { fnRFPortEntry 4 }
+
+fnRFPortRFActive OBJECT-TYPE
+     SYNTAX INTEGER
+     ACCESS read-only
+     STATUS mandatory
+     DESCRIPTION
+"与此RF端口关联的RF工作通道索引。"
+     ::= { fnRFPortEntry 5 }
+
+fnRFPortName OBJECT-TYPE
+     SYNTAX DisplayString
+     ACCESS read-only
+     STATUS mandatory
+     DESCRIPTION
+"端口的物理名称，例如端口1和端口2。
+当此表中的对象产生告警陷阱消息时，此名称将被填入hfcAlarmTrap中的alarmText对象里。"
+     ::= { fnRFPortEntry 6 }
+
+fnRFPortReverseAttenuationControl OBJECT-TYPE
+     SYNTAX INTEGER { none(1), low(2), high(3) }
+     ACCESS read-write
+     STATUS optional
+     DESCRIPTION
+"报告和控制该端口的上行通道衰减开关的状态。
+none(1): 无衰减；
+low(2): 回传通道典型的低衰减值，该衰减值可能并不适用于所有开关。
+high(3): 回传通道典型的高衰减值，该衰减值可能并不适用于所用开关。"
+::= { fnRFPortEntry 7 }
+
+--fnRFPortPowerFeedStatus OBJECT-TYPE
+--     SYNTAX INTEGER { on(1),off(2)  }
+--     ACCESS read-only
+--     STATUS optional
+--     DESCRIPTION
+-- 	     "RF端口馈电状态，‘1’表示有馈电，‘2’表示无馈电"
+--::= { fnRFPortEntry 8 }
+
+-- **************
+-- * AB开关
+-- **************
+
+fnNumberABSwitch OBJECT-TYPE
+     SYNTAX INTEGER ( 0..16)
+     ACCESS read-only
+     STATUS mandatory
+     DESCRIPTION
+"此光节点上AB开关总数，0表示设备无此功能。"
+     ::= { fnIdent 12 }
+
+fnABSwitchTable OBJECT-TYPE
+     SYNTAX SEQUENCE OF FnABSwitchEntry
+     ACCESS not-accessible
+     STATUS mandatory
+     DESCRIPTION
+"该光节点内的AB开关信息表"
+     ::= { fnIdent 13 }
+
+fnABSwitchEntry OBJECT-TYPE
+     SYNTAX FnABSwitchEntry
+     ACCESS not-accessible
+     STATUS mandatory
+     DESCRIPTION
+"AB开关信息表目"
+     INDEX { fnABSwitchIndex }
+     ::= { fnABSwitchTable 1 }
+
+FnABSwitchEntry ::=
+     SEQUENCE
+     {
+          fnABSwitchIndex
+               INTEGER,
+          fnOpticalReceiverABSwitchState
+               INTEGER,
+          fnOpticalReceiverABSwitchControl
+               INTEGER
+     }
+
+fnABSwitchIndex OBJECT-TYPE
+     SYNTAX INTEGER
+     ACCESS read-only
+     STATUS mandatory
+     DESCRIPTION
+"AB开关索引"
+     ::= { fnABSwitchEntry 1 }
+
+fnOpticalReceiverABSwitchState OBJECT-TYPE
+     SYNTAX INTEGER  { pathA(1), pathB(2) }
+     ACCESS read-only
+     STATUS mandatory
+     DESCRIPTION
+"报告AB开关的状态，此对象要求在属性MIB中登记一个条目。"
+     ::= { fnABSwitchEntry 2 }
+
+fnOpticalReceiverABSwitchControl OBJECT-TYPE
+     SYNTAX INTEGER { forcePathA(1), forcePathB(2), preferPathA(3), preferPathB(4) }
+     ACCESS read-write
+     STATUS mandatory
+     DESCRIPTION
+"光接收机的AB开关控制
+forcePathA －　强制AB开关切换到通道A上。禁止任何自动切换。
+forcePathB －　强制AB开关切换到通道B上。禁止任何自动切换。
+preferPathA －　允许自动切换，通道A优先。厂商可以规定在一定条件下切换到通道B。但条件不再满足时AB开关将自动切换回通道A。
+preferPathB－　允许自动切换，通道B优先。厂商可以规定在一定条件下切换到通道A。但条件不再满足时AB开关将自动切换回通道B。	
+光节点应答器不必支持所有的枚举值。如果接收到的设置指令的参数值是不支持的，则回应一个BADVALUE错误。"
+     ::= { fnABSwitchEntry 3 }
+
+-- ***********
+-- * 交流电源
+-- ***********
+
+fnLinePowerVoltage1 OBJECT-TYPE
+     SYNTAX INTEGER ( 0..65535 )
+     ACCESS read-only
+     STATUS optional
+     DESCRIPTION
+"线路电源电压，单位为1VAC。此对象要求在属性MIB中登记一个条目。"
+     ::= { fnIdent 14 }
+
+--fnLinePowerVoltage2 OBJECT-TYPE
+--     SYNTAX INTEGER ( 0..65535 )
+--     ACCESS read-only
+--     STATUS optional
+--     DESCRIPTION
+-- 	"备份线路电源电压，单位为1VAC。此对象要求在属性MIB中登记一个条目。"
+--     ::= { fnIdent 15 }
+
+--fnLinePowerCurrent OBJECT-TYPE
+--     SYNTAX INTEGER ( 0..65535 )
+--     ACCESS read-only
+--     STATUS optional
+--     DESCRIPTION
+-- 	"光节点的总电流，单位为0.1A。此对象要求在属性MIB中登记一个条目。"
+--     ::= { fnIdent 16}
+
+-- *****************
+-- * 直流电源
+-- *****************
+
+fnNumberDCPowerSupply OBJECT-TYPE
+     SYNTAX INTEGER ( 0..16 )
+     ACCESS read-only
+     STATUS mandatory
+     DESCRIPTION
+"内部直流电源的数目，‘0’表示设备无此功能。"
+     ::= { fnIdent 17 }
+
+fnDCPowerSupplyMode OBJECT-TYPE
+     SYNTAX INTEGER { loadsharing(1), switchedRedundant(2) }
+     ACCESS read-only
+     STATUS optional
+     DESCRIPTION
+"供电电源工作模式：负载分担或备用切换。
+如果设备仅有一个直流电源供电，此对象不应被支持。"
+     ::= { fnIdent 18 }
+
+fnDCPowerTable OBJECT-TYPE
+     SYNTAX SEQUENCE OF FnDCPowerEntry
+     ACCESS not-accessible
+     STATUS mandatory
+     DESCRIPTION
+"直流电源信息表"
+     ::= { fnIdent 19 }
+
+fnDCPowerEntry OBJECT-TYPE
+     SYNTAX FnDCPowerEntry
+     ACCESS not-accessible
+     STATUS mandatory
+     DESCRIPTION
+"直流电源信息表目。"
+     INDEX { fnDCPowerIndex }
+     ::= { fnDCPowerTable 1 }
+
+FnDCPowerEntry ::=
+     SEQUENCE
+     {
+          fnDCPowerIndex
+               INTEGER,
+          fnDCPowerVoltage
+               INTEGER,
+--          fnDCPowerCurrent
+--               INTEGER,
+          fnDCPowerName
+               DisplayString
+     }
+
+fnDCPowerIndex OBJECT-TYPE
+     SYNTAX INTEGER
+     ACCESS read-only
+     STATUS mandatory
+     DESCRIPTION
+"直流电源索引,表fnDCPowerTable的索引。"
+     ::= { fnDCPowerEntry 1 }
+
+
+fnDCPowerVoltage OBJECT-TYPE
+     SYNTAX INTEGER ( -32768..32767 )
+     ACCESS read-only
+     STATUS mandatory
+     DESCRIPTION
+"电源电压，单位为0.1V。此对象要求在属性MIB中登记一个条目。"
+     ::= { fnDCPowerEntry 2 }
+
+--fnDCPowerCurrent OBJECT-TYPE
+--     SYNTAX INTEGER ( 0..65535 )
+--     ACCESS read-only
+--     STATUS optional
+--     DESCRIPTION
+-- "电源电流，单位为0.1A。此对象要求在属性MIB中登记一个条目。"
+--     ::= { fnDCPowerEntry 3 }
+
+fnDCPowerName OBJECT-TYPE
+     SYNTAX DisplayString
+     ACCESS read-only
+     STATUS mandatory
+     DESCRIPTION
+"标明直流电源名称，例如：24V直流电源。
+此字段值由用户规定，至少应标明工作电压并将多个电源相互区分开。
+当此表中的对象产生告警时，此对象名称应放进hfcAlarmEvent陷阱的alarmText对象里。"
+		::= { fnDCPowerEntry 4 }
+
+END
