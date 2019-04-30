@@ -64,6 +64,8 @@
 */
 #include  <bsp_lib.h>
 #include  <bsp_eth.h>
+#include  "bsp_usart.h"
+#include  "bsp_spi.h"
 
 
 

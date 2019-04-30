@@ -103,6 +103,14 @@ void  BSP_Init (void)
     RCC_ClearFlag();
   } 
   
+  //
+  //! USART1 (DEBUG) and USART6 (GNSS) initialize.
+  BSP_InitUsart();
+  
+  //
+  //!SPI1 (FPGA) initialize.
+  BSP_SPI_Init();
+  
 }
 bool  BSP_ResetFlag=false;
 

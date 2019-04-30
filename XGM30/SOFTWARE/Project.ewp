@@ -1909,6 +1909,51 @@
       </file>
     </group>
     <group>
+      <name>fpga_module</name>
+      <file>
+        <name>$PROJ_DIR$\APP\Fpga\fpga_handler.c</name>
+      </file>
+    </group>
+    <group>
+      <name>gnss_module</name>
+      <file>
+        <name>$PROJ_DIR$\APP\Gnss\gnss_handler.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\APP\Gnss\gnss_receiver.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\APP\Gnss\gnss_task.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\APP\Gnss\ut4b0_receiver.c</name>
+      </file>
+    </group>
+    <group>
+      <name>system_module</name>
+      <file>
+        <name>$PROJ_DIR$\APP\System\led_interrupt.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\APP\System\system.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\APP\System\watchdog_task.c</name>
+      </file>
+    </group>
+    <group>
+      <name>output_module</name>
+      <file>
+        <name>$PROJ_DIR$\APP\output\out_ntp.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\APP\output\out_pps_tod.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\APP\Output\out_ptp.c</name>
+      </file>
+    </group>
+    <group>
       <name>user_app</name>
       <file>
         <name>$PROJ_DIR$\APP\src\app.c</name>
@@ -1927,21 +1972,33 @@
       </file>
     </group>
     <group>
+      <name>user_debug</name>
+      <file>
+        <name>$PROJ_DIR$\APP\Debug\mtfs30_debug.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\APP\Debug\usart_debug_task.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\APP\Debug\user_cmd.c</name>
+      </file>
+    </group>
+    <group>
       <name>user_eeprom</name>
       <file>
         <name>$PROJ_DIR$\APP\Eeprom\eeprom.c</name>
       </file>
     </group>
     <group>
-      <name>user_main</name>
+      <name>user_roll</name>
       <file>
-        <name>$PROJ_DIR$\APP\Control\control.c</name>
+        <name>$PROJ_DIR$\APP\Roll\roll_count.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\APP\Control\control_main.c</name>
+        <name>$PROJ_DIR$\APP\Roll\roll_print.c</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\APP\Control\Extent INT.c</name>
+        <name>$PROJ_DIR$\APP\Roll\roll_task.c</name>
       </file>
     </group>
     <group>
@@ -1981,6 +2038,18 @@
       <name>user_uart</name>
       <file>
         <name>$PROJ_DIR$\APP\Sensor\serial.c</name>
+      </file>
+    </group>
+    <group>
+      <name>user_util</name>
+      <file>
+        <name>$PROJ_DIR$\APP\Util\util_check.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\APP\Util\util_ringbuffer.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\APP\Util\util_string.c</name>
       </file>
     </group>
     <group>
@@ -2026,6 +2095,15 @@
       </file>
       <file>
         <name>$PROJ_DIR$\BSP\inc\bsp_eth.h</name>
+      </file>
+    </group>
+    <group>
+      <name>src</name>
+      <file>
+        <name>$PROJ_DIR$\BSP\src\bsp_spi.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\BSP\src\bsp_usart.c</name>
       </file>
     </group>
     <group>
@@ -2249,6 +2327,9 @@
           <name>$PROJ_DIR$\BSP\STM32\CMSIS\Device\ST\STM32F4xx\Include\stm32f4xx.h</name>
         </file>
       </group>
+    </group>
+    <group>
+      <name>user_roll</name>
     </group>
     <file>
       <name>$PROJ_DIR$\BSP\stm32f407xE.icf</name>

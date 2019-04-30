@@ -62,6 +62,7 @@ typedef unsigned char tBoolean;
 #define URL_NAME_LEN            64
 #define BREAU_PD_LEN            6
 #define DEVICE_INFO_LEN         32
+#define GNSS_PRIO_LEN           4
 
 
 
@@ -88,12 +89,12 @@ typedef struct
     //
     //! The priority to be use for the GNSS, specified as an MIX MODE.
     //! value for GPS,BD,GLO,GAL. 
-    unsigned char priority[4]; //6
+    unsigned char priority[8]; //6
 
     //
     //! The delaycom for gnss mode,-32767
     //
-    signed short delaycom;    //8
+    long delaycom;    //8
 
 }
 tGNSSParameters;
@@ -229,12 +230,12 @@ typedef struct
     //
     //! The priority 1 for ptp modules.
     //
-    signed char priority1;         //28
+    unsigned char priority1;         //28
     
     //
     //! The priority 2 for ptp modules.
     //
-    signed char priority2;         //28
+    unsigned char priority2;         //28
     
 }
 tPtpModeParameters;

@@ -33,13 +33,21 @@
 #include "Eeprom/eeprom.h"
 #include "config.h"
 #include "lwip.h"
+#include "Gnss/gnss.h"
+#include "Gnss/gnss_handler.h"
+#include "Gnss/gnss_task.h"
+#include "Roll/roll_task.h"
+#include "System/watchdog_task.h"
+#include "Debug/mtfs30_debug.h"
 
 /*
 *********************************************************************************************************
-*                                             LOCAL DEFINES
+*                                             GLOBAL VARIABLES
 *********************************************************************************************************
 */
-
+OS_SEM  g_usart_debug_sem;   /* 串口调试用信号量   */
+OS_SEM  g_ut4b0_reply_sem;   /* 命令回复信号量     */
+OS_Q    g_gnss_msgq;         /* 卫星信息消息队列   */
 /*
 *********************************************************************************************************
 *                                            LOCAL VARIABLES
@@ -57,7 +65,13 @@ static  CPU_STK  AppTaskStartStk[APP_TASK_START_STK_SIZE];
 */
 
 static  void  AppTaskStart  (void *p_arg);
-
+/*
+*********************************************************************************************************
+*                                         extern global variable
+*********************************************************************************************************
+*/
+extern u8_t      g_debug_switch;        /* 串口调试开关变量   */
+extern u8_t      g_roll_print_switch;   /* 循环打印开关变量   */
 
 /*
 *********************************************************************************************************
@@ -78,14 +92,17 @@ int  main (void)
   
   /* Setup STM32 system (clock, PLL and Flash configuration) */
   SystemInit();
+  
   //
   //! Disable all interrupts.
   //
-  BSP_IntDisAll();                                           
+  BSP_IntDisAll(); 
+  
   //
   //! Init uC/OS-III.
   //
-  OSInit(&err);                                            
+  OSInit(&err);  
+  
   //
   //! Create the start task.
   //
@@ -124,20 +141,15 @@ int  main (void)
 * Note(s)     : none.
 *********************************************************************************************************
 */
-
-/*--------------- LCD Messages ---------------*/
-//#include "stm32_eval.h"
-//#include "stm322xg_eval_lcd.h"
-//#define MESSAGE1   "     STM32F2x7      "
-//#define MESSAGE2   "  STM32F-2 Series   "
-//#define MESSAGE3   "     uCOS-III       "
-
 extern void Snmp_Trap_Task(void);
 extern void Web_Server_Task(void);
 extern void main_control_Task(void);
 extern void Sntp_Main_Init(void);
 extern void Shell_Server_Task(void);
 extern void Main_Sensor_Task(void);
+static void sem_init(void);
+static void Global_variable_init(void);
+
 static  void  AppTaskStart (void *p_arg)
 {
   
@@ -170,8 +182,10 @@ static  void  AppTaskStart (void *p_arg)
 #if 0
   CPU_IntDisMeasMaxCurReset(); 
 #endif
+  /*! semaphore                             */
+  /* debug serial sem                       */
+  sem_init();
   
- 
   /*! Flash EEPROM                             */
   /* Unlock the Flash Program Erase controller */
   FLASH_Unlock();
@@ -181,6 +195,9 @@ static  void  AppTaskStart (void *p_arg)
   
   /*config initalize*/
   ConfigInit();
+  
+  /*Global variable initialize */
+  Global_variable_init();
   
   /*wait 5 seconds util rt8041 reset over*/ 
   OSTimeDlyHMSM(0, 0,5, 0, OS_OPT_TIME_HMSM_STRICT, &err);
@@ -206,17 +223,38 @@ static  void  AppTaskStart (void *p_arg)
   
  
   
+  //
+  //!gnss initialize configure.
+  //
+    gnss_init();
+  
   
   //
-  //Create the main control task.
+  //Create the watchdog task.
   //
-  main_control_Task();
+   watchdog_task_create();
+  
   //
   //Create the Http server thread.
   //
+   Web_Server_Task();
+   
+  //
+  //Create the gnss thread.
+  //
+   gnss_task_create();
   
-  Web_Server_Task();
-  
+   //
+  //Create the debug thread.
+  //
+   debug_task_create();
+    
+  //
+  //Create the Roll thread.
+  //
+   roll_task_create();
+   
+   
   //
   //Create the snmp server thread.
   //
@@ -245,4 +283,47 @@ static  void  AppTaskStart (void *p_arg)
     // BSP_Sleep(1000);      
   }    
   
+}
+
+
+static void sem_init(void)
+{
+    OS_ERR      err;
+    /* create debug serial semaphore */
+    OSSemCreate ((OS_SEM*   ) &g_usart_debug_sem,
+                 (CPU_CHAR* ) "DEBUG SEM",
+                 (OS_SEM_CTR) 0,
+                 (OS_ERR*   ) &err);
+    
+     /* 创建命令回复信号量 */
+    OSSemCreate ((OS_SEM*   ) &g_ut4b0_reply_sem,
+                 (CPU_CHAR* ) "UT4B0 REPLY SEM",
+                 (OS_SEM_CTR) 0,
+                 (OS_ERR*   ) &err); 
+    
+    /* 创建卫星信息消息队列 */
+    OSQCreate ((OS_Q     *) &g_gnss_msgq,
+               (CPU_CHAR *) "GNSS MSGQ",
+               (OS_MSG_QTY) GNSS_MSG_MAX_LEN,
+               (OS_ERR*   ) &err);
+}
+
+/*****************************************************************************
+ * fuction:     Other_variable_init                                                          
+ * description:    initialize the Ohter variable.                                                               
+ * parameters:    null                                                                             
+ * return:        null                                                                                       
+ ****************************************************************************/
+static void Global_variable_init(void)
+{
+
+    /* serial debug switch,data for 0 off,1 on */
+    g_debug_switch = 0; 
+    
+    /* roll printf switch,data for 0 off,1 on  */
+    g_roll_print_switch = 0; 
+    
+    /* initialize the temp gnss information variable */
+    gnss_global_variable_init(); 
+
 }

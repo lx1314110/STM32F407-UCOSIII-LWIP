@@ -6,10 +6,13 @@
 #include "fs.h"
 #include "ustdlib.h"
 #include "config.h"
+#include "lwip.h"
+#include "Gnss/gnss.h"
 
 #include "Sntp/sntp.h"
-#include "Control/control.h"
+//#include "Control/control.h"
 #include "Eeprom/eeprom.h"
+#include "Debug/mtfs30_debug.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -61,82 +64,90 @@ tBoolean ugSntp_Changed = false;
 // SSI tag indices for each entry in the g_pcSSITags array.
 //
 //*****************************************************************************
-#define SSI_INDEX_GNSSVARS       0
-#define SSI_INDEX_PTPNETVARS     1
-#define SSI_INDEX_PTPMODEVARS    2
-#define SSI_INDEX_OUTVARS        3
-#define SSI_INDEX_GPSPRI         4
-#define SSI_INDEX_GNSSDLYCOM     5
-#define SSI_INDEX_PTPMAC         6
-#define SSI_INDEX_PTPIP          7
-#define SSI_INDEX_PTPMASK        8
+enum
+{
+SSI_INDEX_GNSSVARS = 0,
+SSI_INDEX_PTPNETVARS,
+SSI_INDEX_PTPMODEVARS,
+SSI_INDEX_OUTVARS, 
+SSI_INDEX_GPSPRI,         
+SSI_INDEX_GNSSDLYCOM,     
+SSI_INDEX_PTPMAC,        
+SSI_INDEX_PTPIP,         
+SSI_INDEX_PTPMASK,        
 
-#define SSI_INDEX_PTPGW          9
-#define SSI_INDEX_PTPVID        10
-#define SSI_INDEX_PTPPORT       11
-#define SSI_INDEX_PTPPORTSTAT   12
-#define SSI_INDEX_PTPDOMAIN     13
-#define SSI_INDEX_PTPDLYCOM     14
-#define SSI_INDEX_PTPPRIO1      15
-#define SSI_INDEX_PTPPRIO2      16
-#define SSI_INDEX_1PPSDLYCOM    17
-#define SSI_INDEX_1PPSTODDLYCOM 18
-#define SSI_INDEX_IRIGBDLYCOM   19
+SSI_INDEX_PTPGW,          
+SSI_INDEX_PTPVID,        
+SSI_INDEX_PTPPORT,       
+SSI_INDEX_PTPPORTSTAT,   
+SSI_INDEX_PTPDOMAIN,     
+SSI_INDEX_PTPDLYCOM,     
+SSI_INDEX_PTPPRIO1,      
+SSI_INDEX_PTPPRIO2,      
+SSI_INDEX_1PPSDLYCOM,    
+SSI_INDEX_1PPSTODDLYCOM, 
+SSI_INDEX_IRIGBDLYCOM,   
+SSI_INDEX_1PPSDUTY,      
 
-#define SSI_INDEX_1PPSDUTY      20
-#define SSI_INDEX_UVLO          21
-#define SSI_INDEX_OVERCUR       22
-#define SSI_INDEX_LEAKCUR       23
+SSI_INDEX_ANTSTATUS,     
+SSI_INDEX_POSTSTATUS,    
+SSI_INDEX_POSTNUM,       
+SSI_INDEX_PPSSTATUS,     
 
-#define SSI_INDEX_MACVARS       24
-#define SSI_INDEX_IPVARS        25
-#define SSI_INDEX_SNVARS        26
-#define SSI_INDEX_GWVARS        27
-#define SSI_INDEX_DNSVAR        28
-#define SSI_INDEX_WEBPORT       29
-#define SSI_INDEX_PNPINP        30
-#define SSI_INDEX_NOPID         31
-#define SSI_INDEX_OLDPID        32
+SSI_INDEX_PRELEAP,       
+SSI_INDEX_LEAP,          
+SSI_INDEX_UTC,           
+SSI_INDEX_LATITUDE,      
+SSI_INDEX_LONGITUDE,     
+SSI_INDEX_ALTITUDE,      
+SSI_INDEX_GNSSMODE,      
+//#define SSI_INDEX_SATNUM        32
+SSI_INDEX_GPS,           
 
-#define SSI_INDEX_SNTPVARS      33
-#define SSI_INDEX_SNTPURL       34
-#define SSI_INDEX_SNTPINTER     35
-
-#define SSI_INDEX_TRAPVARS      36
-#define SSI_INDEX_TRAPIP        37
-#define SSI_INDEX_TRAPPORT      38
-
-#define SSI_INDEX_SWENVARS      39
-#define SSI_INDEX_BOOTHVARS     40
-#define SSI_INDEX_BOOTMVARS     41
-#define SSI_INDEX_SHUTHVARS     42
-#define SSI_INDEX_SHUTMVARS     43
-
-#define SSI_INDEX_RGVARS        44
-#define SSI_INDEX_DELAY1        45
-#define SSI_INDEX_DELAY2        46
-#define SSI_INDEX_DELAY3        47
-
-#define SSI_INDEX_MODENAME      48
-#define SSI_INDEX_MODEL         49
-#define SSI_INDEX_MANUFACT      50
-#define SSI_INDEX_SERIAL        51
-#define SSI_INDEX_POSITION      52
-#define SSI_INDEX_INSTALPERSON       53
-#define SSI_INDEX_INSTALTIME         54
-#define SSI_INDEX_RUNTIME            55
-#define SSI_INDEX_SOFTVER            56
-#define SSI_INDEX_HARDVER            57
-#define SSI_INDEX_CURTIME            58
-
-#define SSI_INDEX_SYSVOL             59
-#define SSI_INDEX_SYSCUR             60
-#define SSI_INDEX_LAMP               61
-#define SSI_INDEX_TEMPVAR            62
-#define SSI_INDEX_HUMIVAR            63
-
+SSI_INDEX_BDS,           
+SSI_INDEX_GLO,           
+SSI_INDEX_GAL,
+SSI_INDEX_REFTYPE,
+SSI_INDEX_CLKTYPE,
+SSI_INDEX_REFSTATUS,
+SSI_INDEX_TRACK,
+SSI_INDEX_PHASE,
+SSI_INDEX_SSM,
+    
+SSI_INDEX_PTPSTATUS,
+SSI_INDEX_RECVOPT,
+SSI_INDEX_RECVOPTH,
+SSI_INDEX_RECVOPL,
+SSI_INDEX_SENDOPT,
+SSI_INDEX_SENDOPTH,
+SSI_INDEX_SENDOPTL,
+SSI_INDEX_BIASCUR,
+SSI_INDEX_BIASCURH,
+SSI_INDEX_BIASCURL,
+          
+};
 //! XML Temp Buffer Size
 #define XML_TMPBUF_SIZE              96
+
+//
+//threshold define.
+//
+#define DLYCOM_MAX_THRESHOLD        50000000 
+#define DLYCOM_MIN_THRESHOLD       -50000000 
+enum
+{
+	GNSS_DISABLE = 0,
+	GNSS_ENABLED,
+};
+
+enum
+{
+	GNSS_MIX_MODE = 1,
+	GNSS_GPS_MODE,
+        GNSS_BD_MODE,
+        GNSS_GLO_MODE,
+        GNSS_GAL_MODE,
+};
 
 
 static unsigned long old_SysRunDay = 0;
@@ -175,7 +186,7 @@ static const char* g_pcConfigSSITags[] =
     "ip",        // SSI_INDEX_PTPIP
     "mask",      // SSI_INDEX_PTPMASK
     "gw",        // SSI_INDEX_PTPGW
-    "cfi",       // SSI_INDEX_PTPCFI
+    "vid",       // SSI_INDEX_PTPVID
     "port",      // SSI_INDEX_PTPPORT
     "stat",      // SSI_INDEX_PTPPORTSTAT
     "domain",    // SSI_INDEX_PTPDOMAIN
@@ -187,38 +198,41 @@ static const char* g_pcConfigSSITags[] =
     "idlycom",   // SSI_INDEX_IRIGBDLYCOM
     "duty",      // SSI_INDEX_1PPSDUTY
     
-    "uvlo",       // SSI_INDEX_UVLO
-    "oc",         // SSI_INDEX_OVERCUR
-    "lc",         // SSI_INDEX_LEAKCUR
-    "macvars",    // SSI_INDEX_MACVARS
-    "ipvars",     // SSI_INDEX_IPVARS
-    "snvars",     // SSI_INDEX_SNVARS
-    "gwvars",     // SSI_INDEX_GWVARS
-    "dnsvars",    // SSI_INDEX_DNSVAR
-    "webprt",     // SSI_INDEX_WEBPORT
-    "pnpinp",     // SSI_INDEX_PNPINP
-    "nopid",      // SSI_INDEX_NOPID
-    "oldpid",     // SSI_INDEX_OLDPID
-    "ntpvars",    // SSI_INDEX_SNTPVARS
-    "spurl",      // SSI_INDEX_SNTPURL
-    "spinter",    // SSI_INDEX_SNTPINTER
-    "tpvars",     // SSI_INDEX_TRAPVARS
-    "trip",       // SSI_INDEX_TRAPIP
-    "trpt",       // SSI_INDEX_TRAPPORT
-    "swvars",     // SSI_INDEX_SWENVARS
-    "bthvars",    // SSI_INDEX_BOOTHVARS
-    "btmvars",    // SSI_INDEX_BOOTMVARS
-    "sthvars",    // SSI_INDEX_SHUTHVARS
-    "stmvars",    // SSI_INDEX_SHUTMVARS
-    "rgvars",     // SSI_INDEX_RGVARS
-    "delay1",     // SSI_INDEX_DELAY1
-    "delay2",     // SSI_INDEX_DELAY2
-    "delay3",     // SSI_INDEX_DELAY3
-    "modename",   // SSI_INDEX_MODENAME
-    "model",      // SSI_INDEX_MODEL
-    "manu",       // SSI_INDEX_MANUFACT
-    "serial",     // SSI_INDEX_SERIAL
-    "pos",        // SSI_INDEX_POSITION
+    "antst",     // SSI_INDEX_ANTSTATUS
+    "postst",    // SSI_INDEX_POSTSTATUS
+    "postnum",   // SSI_INDEX_POSTNUM
+    "ppsst",     // SSI_INDEX_PPSSTATUS
+    "preleap",   // SSI_INDEX_PRELEAP
+    "leap",      // SSI_INDEX_LEAP
+    "utc",       // SSI_INDEX_UTC
+    "lat",       // SSI_INDEX_LATITUDE
+    "longti",    // SSI_INDEX_LONGITUDE
+    "altitu",    // SSI_INDEX_ALTITUDE
+    "gnssmd",    // SSI_INDEX_GNSSMODE
+ //   "satnum",    // SSI_INDEX_SATNUM
+    "gps",       // SSI_INDEX_GPS
+    "bds",       // SSI_INDEX_BDS
+    "glo",       // SSI_INDEX_GLO
+    "gal",       // SSI_INDEX_GAL
+    
+    "reftype",   // SSI_INDEX_REFTYPE
+    "clktype",   // SSI_INDEX_CLKTYPE
+    "refstat",   // SSI_INDEX_REFSTATUS
+    "track",     // SSI_INDEX_TRACK
+    "phase",     // SSI_INDEX_PHASE
+    "ssm",       // SSI_INDEX_SSM
+    
+    "ptpstat",   // SSI_INDEX_PTPSTATUS
+    "recvop",    // SSI_INDEX_RECVOPT
+    "recvoph",   // SSI_INDEX_RECVOPTH
+    "recvopl",   // SSI_INDEX_RECVOPL
+    "sndop",     // SSI_INDEX_SENDOPT
+    "sndoph",    // SSI_INDEX_SENDOPTH
+    "sndopl",    // SSI_INDEX_SENDOPTL
+    "biacur",    // SSI_INDEX_BIASCUR
+    "biacuh",    // SSI_INDEX_BIASCURH
+    "biacul",    // SSI_INDEX_BIASCURL
+    
     "instal",     // SSI_INDEX_INSTALPERSON
     "instime",    // SSI_INDEX_INSTALTIME
     "runtime",    // SSI_INDEX_RUNTIME
@@ -247,7 +261,7 @@ static const char* g_pcConfigSSITags[] =
 //
 //*****************************************************************************
 static const char*
-ConfigHomeHandler( int iIndex, int iNumParams, char* pcParam[], char* pcValue[] );
+ConfigGnssHandler( int iIndex, int iNumParams, char* pcParam[], char* pcValue[] );
 //*****************************************************************************
 //
 //! Prototype for the function which handles requests for config.cgi.
@@ -344,7 +358,7 @@ static uint16_t ConfigSSIHandler( int iIndex, char* pcInsert, int iInsertLen );
 static const tCGI g_psConfigCGIURIs[] =
 {
     { "/login.cgi", LoginCGIHandler },              // CGI_INDEX_Login
-    { "/contrl.cgi", ConfigHomeHandler },           // CGI_INDEX_CONFIG
+    { "/gnss.cgi", ConfigGnssHandler },           // CGI_INDEX_CONFIG
     { "/thresh.cgi", Config2CGIHandler1 },            // CGI_INDEX_CONFIG
     { "/ip.cgi", ConfigIPCGIHandler },              // CGI_INDEX_IP
     { "/sntp.cgi", SNTPCGIHandler },            // CGI_INDEX_CONFIG
@@ -387,6 +401,7 @@ static const tCGI g_psConfigCGIURIs[] =
 #define CTRSTYPE_CGI_RESPONSE   "/config.shtml"
 #define INFO_CGI_RESONSE        "/info.shtml"
 #define UPD_CGI_RESONSE         "/udp.shtml"
+#define SET_CGI_RESPONSE        "/set.shtml"
 #define RESPONSE_PAGE_SET_CGI_RSP_URL     "/response.ssi"
 //*****************************************************************************
 //
@@ -673,7 +688,7 @@ static const tConfigParameters g_sParametersFactory =
     {'u', 'p', 'o', 'k'},
     
     /*GNSS modules parameters, mean gnss_enable, mix mode, gps prior, 0 delay compensate*/
-    {1, 1, "GPS", 0},
+    {1, 1, "1234", 0},
     
     /*ptp net mac address,ip address, subnet mask, gateway, vlan enable, vlan priority code point, 
       canonical format indicate,vlan identifier*/
@@ -699,8 +714,8 @@ static const tConfigParameters g_sParametersFactory =
       0,        //    unicast,
       1,        //    encode package,
       0,        //    step,
-      0,        //    sync frequecy,
-      0 ,       //    anounce frequecy,
+      8,        //    sync frequecy,
+      8,       //    anounce frequecy,
       24,       //    domain, 
       0,        //    protocol,
       0,        //    delay compensation,
@@ -1985,6 +2000,8 @@ ConfigGetCGIParam1( const char* pcName, char* pcParams[], char* pcValue[],
     *pbError = true;
     return( 0 );
 }
+
+
 //*****************************************************************************
 //
 //! \internal
@@ -2073,7 +2090,9 @@ ConfigGetCGIIPAddr( const char* pcName, char* pcParam[], char* pcValue[],
         return( ulIPAddr );
     }
 }
-//String into an integer
+//
+//! String into an integer
+//
 unsigned char StringtoInt( char* s )
 {
     unsigned lvaule = 0;
@@ -2193,6 +2212,7 @@ ConfigGetCGIMacaddr( const char* pcToFind, int iNumParams, char* pcParam[],
     berror = true;
     return berror;
 }
+
 //*****************************************************************************
 //
 //! \internal
@@ -2254,7 +2274,7 @@ static const char*
 LoginCGIHandler( int iIndex, int iNumParams, char* pcParam[], char* pcValue[] )
 {
     int iParam;
-    long lpasswd;
+    //long lpasswd;
     tBoolean bParamError;
     bParamError = false;
     char* rootpasswd = "root";
@@ -2413,93 +2433,101 @@ ConfigresetCGIHandler( int iIndex, int iNumParams, char* pcParam[],
 //    bReset   = true;
     return( UPD_CGI_RESONSE );
 }
-unsigned char b_zonechange = false;
+//unsigned char b_zonechange = false;
 
-extern u32_t   ACVOTAGE;
+//extern u32_t   ACVOTAGE;
 
-extern u32_t   ACLOADCUR;
+//extern u32_t   ACLOADCUR;
+
+
 static const char*
-ConfigHomeHandler( int iIndex, int iNumParams, char* pcParam[], char* pcValue[] )
+ConfigGnssHandler( int iIndex, int iNumParams, char* pcParam[], char* pcValue[] )
 {
-    // long lValue;
-//    tBoolean bParamError;         //cgi error .
-//    //tBoolean bRemoteCmdChanged; //Remote cmd as ch1 to ch4 switch .
-//    unsigned char ch1RemoteCmd;   //Chnanel one remote command.
-//    unsigned char ch2RemoteCmd;   //Chnanel two remote command.
-//    unsigned char ch3RemoteCmd;   //Chnanel three remote command.
-//    unsigned char ch4RemoteCmd;   //Chnanel four remote command.
-//    tBoolean b_sysrefchanged;
-//    unsigned long tempdata;
-//    unsigned short vref;
-//    unsigned short iref;
-//    //
-//    // We have not encountered any parameter errors yet.
-//    //
-//    b_sysrefchanged = false;
-//    bParamError = false;
-//    if( syslog )
-//    {
-//        vref = ( unsigned short )ConfigGetCGIParam1( "vref", pcParam,
-//                pcValue,
-//                iNumParams,
-//                &bParamError );
-//        iref = ( unsigned short )ConfigGetCGIParam1( "iref", pcParam,
-//                pcValue,
-//                iNumParams,
-//                &bParamError );
-//        b_sysrefchanged = true;
-//    }
-//    //
-//    // the remote cgi command of the Channel one .
-//    //
-//    ch1RemoteCmd = ( unsigned long )ConfigGetCGIParam( "cm1", pcParam,
-//                   pcValue,
-//                   iNumParams,
-//                   &bParamError );
-//    //
-//    // the remote cgi command of the Channel two .
-//    //
-//    ch2RemoteCmd = ( unsigned char )ConfigGetCGIParam( "cm2", pcParam,
-//                   pcValue,
-//                   iNumParams,
-//                   &bParamError );
-//    //
-//    // the remote cgi command of the Channel three .
-//    //
-//    ch3RemoteCmd = ( unsigned long )ConfigGetCGIParam( "cm3", pcParam,
-//                   pcValue,
-//                   iNumParams,
-//                   &bParamError );
-//    //
-//    // the remote cgi command of the Channel four .
-//    //
-//    ch4RemoteCmd = ( unsigned long )ConfigGetCGIParam( "cm4", pcParam,
-//                   pcValue,
-//                   iNumParams,
-//                   &bParamError );
-//    //
-//    // We have now read all the parameters and made sure that they are valid
-//    // decimal numbers.  Did we see any errors during this process?
-//    //
-//    if( bParamError )
-//    {
-//        //
-//        // Yes - tell the user there was an error.
-//        //
-//        return( PARAM_ERROR_RESPONSE );
-//    }
-   
     //
-    // Send the user back to the main status page.
+    //!temp varible zone.
     //
-    if( syslog )
+    int iParam;
+    tBoolean bParamError;          //cgi error .
+    unsigned char gnss_en = 0 ;     //gnss enable temp val.
+    unsigned char gnss_mode = 0;        //gnss work mode temp val.
+    //unsigned char gnss_prio[4];   //gnss priority temp val.
+    long gnss_dlycom = 0;             //gnss delay compensation temp val.
+    
+    //
+    // We have not encountered any parameter errors yet.
+    //
+    bParamError = false;
+    iParam = -1;
+    
+    //
+    // the remote cgi command of GNSS enable.
+    //
+    gnss_en = ( unsigned char )ConfigGetCGIParam( "gen", pcParam,
+                   pcValue,
+                   iNumParams,
+                   &bParamError );
+    //
+    // the remote cgi command of the GNSS mode.
+    //
+    gnss_mode = ( unsigned char )ConfigGetCGIParam( "gmode", pcParam,
+                   pcValue,
+                   iNumParams,
+                   &bParamError );
+    //
+    // the remote cgi command of the gnss mode priority .
+    //
+    iParam = ConfigFindCGIParameter( "gpri", pcParam, iNumParams );
+    if( iParam != -1 )
     {
-        return( DEFAULT_CGI_RESPONSE1 );
+        ConfigDecodeFormString( pcValue[iParam],
+                                ( char* )g_sParameters.GnssParameters.priority,
+                                GNSS_PRIO_LEN );
+    }
+ 
+    //
+    // the remote cgi command of the Channel four .
+    //
+    gnss_dlycom = ( long )ConfigGetCGIParam( "dlycom", pcParam,
+                   pcValue,
+                   iNumParams,
+                   &bParamError );
+    
+    
+    //
+    // check the value legitimate.
+    //
+    if(gnss_dlycom > DLYCOM_MAX_THRESHOLD || gnss_dlycom < DLYCOM_MIN_THRESHOLD ||
+       gnss_en > GNSS_ENABLED || gnss_en < GNSS_DISABLE || gnss_mode > GNSS_GAL_MODE ||
+       gnss_mode < GNSS_MIX_MODE)
+    {
+       bParamError = true;
+    }
+    
+    //
+    // We have now read all the parameters and made sure that they are valid
+    // decimal numbers.  Did we see any errors during this process?
+    //
+    if( bParamError )
+    {
+        //
+        // Yes - tell the user there was an error.
+        //
+        return( PARAM_ERROR_RESPONSE );
     }
     else
     {
-        return( DEFAULT_CGI_RESPONSE );
+        //
+        // if check corrected,save config into flash.
+        //
+        g_sParameters.GnssParameters.enable = gnss_en;
+        g_sParameters.GnssParameters.mode = gnss_mode;
+        g_sParameters.GnssParameters.delaycom = gnss_dlycom;
+        g_sWorkingDefaultParameters = g_sParameters;
+        ConfigSave();
+        return( SET_CGI_RESPONSE);
     }
+   
+    
 }
 static const char*
 SNTPCGIHandler( int iIndex, int iNumParams, char* pcParam[], char* pcValue[] )
@@ -2585,51 +2613,51 @@ SNTPCGIHandler( int iIndex, int iNumParams, char* pcParam[], char* pcValue[] )
 static const char*
 Config2CGIHandler1( int iIndex, int iNumParams, char* pcParam[], char* pcValue[] )
 {
-    int iParam;
-    tBoolean bParamError;
-    unsigned short     ulOverVoltage;
-    unsigned short     ulUVLO;
-    unsigned short     ulOverCurrent;
-    unsigned short     ulLeakCurrent;
-    //
-    // We have not encountered any parameter errors yet.
-    //
-    bParamError = false;
-    //
-    // General overvoltage from the cgi parameters of http.
-    //
-    ulOverVoltage = ( unsigned short )ConfigGetCGIParam1( "ovvol", pcParam,
-                    pcValue,
-                    iNumParams,
-                    &bParamError );
-    //
-    // General UVLO from the cgi parameters of http.
-    //
-    ulUVLO = ( unsigned short )ConfigGetCGIParam1( "uvlow", pcParam,
-             pcValue,
-             iNumParams,
-             &bParamError );
-    //
-    // General over current from the cgi parameters of http.
-    //
-    ulOverCurrent = ( unsigned short )ConfigGetCGIParam1( "overcur", pcParam,
-                    pcValue,
-                    iNumParams,
-                    &bParamError );
-    //
-    // General the leakage current from the cgi parameters of http.
-    //
-    ulLeakCurrent = ( unsigned short )ConfigGetCGIParam1( "leakcur", pcParam,
-                    pcValue,
-                    iNumParams,
-                    &bParamError );
-    if( bParamError )
-    {
-        //
-        // Yes - tell the user there was an error.
-        //
-        return( PARAM_ERROR_RESPONSE );
-    }
+//    int iParam;
+//    tBoolean bParamError;
+//    unsigned short     ulOverVoltage;
+//    unsigned short     ulUVLO;
+//    unsigned short     ulOverCurrent;
+//    unsigned short     ulLeakCurrent;
+//    //
+//    // We have not encountered any parameter errors yet.
+//    //
+//    bParamError = false;
+//    //
+//    // General overvoltage from the cgi parameters of http.
+//    //
+//    ulOverVoltage = ( unsigned short )ConfigGetCGIParam1( "ovvol", pcParam,
+//                    pcValue,
+//                    iNumParams,
+//                    &bParamError );
+//    //
+//    // General UVLO from the cgi parameters of http.
+//    //
+//    ulUVLO = ( unsigned short )ConfigGetCGIParam1( "uvlow", pcParam,
+//             pcValue,
+//             iNumParams,
+//             &bParamError );
+//    //
+//    // General over current from the cgi parameters of http.
+//    //
+//    ulOverCurrent = ( unsigned short )ConfigGetCGIParam1( "overcur", pcParam,
+//                    pcValue,
+//                    iNumParams,
+//                    &bParamError );
+//    //
+//    // General the leakage current from the cgi parameters of http.
+//    //
+//    ulLeakCurrent = ( unsigned short )ConfigGetCGIParam1( "leakcur", pcParam,
+//                    pcValue,
+//                    iNumParams,
+//                    &bParamError );
+//    if( bParamError )
+//    {
+//        //
+//        // Yes - tell the user there was an error.
+//        //
+//        return( PARAM_ERROR_RESPONSE );
+//    }
     //
     // Did any of the module parameters change?
     //
@@ -3525,6 +3553,160 @@ static const char* Opther_CGIHandler( int iIndex, int iNumParams, char* pcParam[
     strcat( ( char* )( data_response_buf ), buf );
     return RESPONSE_PAGE_SET_CGI_RSP_URL;
 }
+
+//
+//! get gnss info .
+//
+static void get_gnss_info(unsigned char *type, char startch, unsigned char *endstr, unsigned char *tmp)
+{   
+    char *p = NULL;
+    char *p1 = NULL;
+    char ok_flag = 0;
+    unsigned char len = 0;
+    unsigned char buf[GNSS_STATELLITE_INFO_LEN];
+  
+    
+    memset(buf, '\0', GNSS_STATELLITE_INFO_LEN);
+    gnss_receiver_get_info(type, buf);
+    //
+    //! debug gnss info
+    //
+    MTFS30_DEBUG("gnss type,%s:%s!\r\n",type,buf);
+   
+    if(endstr != NULL)
+        p = strstr(buf, endstr);
+    
+    MTFS30_DEBUG("findstr gnss type,%s:%s!\r\n",type,p);
+      
+    if(startch != '\0')
+    {
+        p1 = p;
+        while(p1--)
+        {
+          if(p1 == &buf[0])
+              break;
+          
+          if(*p1 == startch )
+          {
+             ok_flag = 1;
+              break;
+          } 
+        }
+        
+        if(ok_flag)  
+        {
+          strncpy(tmp, p1+1, p - p1 -1);
+          tmp[p-p1] = '\0';
+        }
+        else
+          memset(tmp, '\0', sizeof(tmp)); 
+    }
+    else
+    {
+        if(p)
+        {
+           
+           *p = '\0';
+           strncpy(tmp, buf, strlen(buf));
+        }
+        else
+           memset(tmp, '\0', sizeof(tmp));
+    }   
+}
+
+//
+//! split gnss info1 .
+//
+static void split_gnss_info(unsigned char *type, char startch, char endch,unsigned char split_num,
+                            unsigned char end_num, unsigned char *tmp)
+{   
+    char *p = NULL;
+    char *p1 = NULL;
+    char ok_flag = 0;
+    unsigned short len = 0;
+    unsigned short inx =0;
+    unsigned char count = 0;
+    unsigned char count1 = 0;
+    unsigned char buf[GNSS_STATELLITE_INFO_LEN];
+  
+    
+    memset(buf, '\0', GNSS_STATELLITE_INFO_LEN);
+    gnss_receiver_get_info(type, buf);
+    
+    if((startch != '\0') && (endch != '\0'))
+    {
+       len =  strlen(buf);
+       for(inx = 0; inx < len; inx++)
+       {
+         if(buf[inx] == startch)
+         {
+           count++; 
+           if(split_num == count)
+              p = &buf[inx];
+         }
+                 
+         
+         if(buf[inx] == endch)
+         {
+           count1++; 
+           if(end_num == count1)
+              p1 = &buf[inx];
+         }
+       }
+       
+       if(p == NULL || p1 == NULL)
+         memset(tmp, '\0', sizeof(tmp)); 
+       else
+       {
+         strncpy(tmp, p+1, p1 - p -1);
+         tmp[p-p1] = '\0';
+       }
+    } 
+}
+
+//
+//! split gnss info1 .
+//
+static void split1_gnss_info(unsigned char *type, char* startstr, char endch,
+                             unsigned char *tmp)
+{   
+    char *p = NULL;
+    char *p1 = NULL;
+    char ok_flag = 0;
+    unsigned short len = 0;
+    unsigned char buf[GNSS_STATELLITE_INFO_LEN];
+  
+    
+    memset(buf, '\0', GNSS_STATELLITE_INFO_LEN);
+    gnss_receiver_get_info(type, buf);
+    
+    if((startstr != NULL) && (endch != '\0'))
+    {
+       len =  strlen(buf);
+       p =  strstr(buf, startstr);
+       p1 = p;
+       
+       while(p1++)
+       {
+         if(p1 == &buf[len-1])
+           break;
+         
+         if(*p1 == endch)
+         {
+           ok_flag = 1;
+           break;
+         }
+       }
+       
+       if(ok_flag)
+       {
+         strncpy(tmp, p, p1 - p);
+         tmp[p-p1] = '\0';
+       }
+       else
+         memset(tmp, '\0', sizeof(tmp));   
+    } 
+}
 //*****************************************************************************
 //! \internal
 //!
@@ -3555,6 +3737,8 @@ ConfigSSIHandler( int iIndex, char* pcInsert, int iInsertLen )
 {
     //unsigned long ulPort;
     int iCount;
+    unsigned char tmp_buf[GNSS_STATELLITE_INFO_LEN];
+ 
     //
     // Which SSI tag are we being asked to provide content for?
     //
@@ -3663,7 +3847,7 @@ ConfigSSIHandler( int iIndex, char* pcInsert, int iInsertLen )
        //
         case SSI_INDEX_GPSPRI:
         {
-            iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='gpri' style='width:152' disabled='true' value='");
+            iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='gpri' style='width:152' value='");
             if( iCount < iInsertLen )
             {
                 iCount +=
@@ -3717,7 +3901,7 @@ ConfigSSIHandler( int iIndex, char* pcInsert, int iInsertLen )
             {
 
                 iCount +=
-                  usnprintf( pcInsert + iCount, iInsertLen - iCount, "%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X",
+                  usnprintf( pcInsert + iCount, iInsertLen - iCount, "%02X:%02X:%02X:%02X:%02X:%02X",
                                      g_sParameters.PtpNetParameters.ptp_mac[0],
                                      g_sParameters.PtpNetParameters.ptp_mac[1],
                                      g_sParameters.PtpNetParameters.ptp_mac[2],
@@ -4064,7 +4248,7 @@ ConfigSSIHandler( int iIndex, char* pcInsert, int iInsertLen )
             return( iCount );
            
         }
-         //
+        //
         //Insert out 1pps duty tag mark,when onload html.
         //
         case SSI_INDEX_1PPSDUTY:
@@ -4088,6 +4272,492 @@ ConfigSSIHandler( int iIndex, char* pcInsert, int iInsertLen )
             return( iCount );
            
         }
+        
+        //
+        //Insert out antstatus tag mark,when onload html.
+        //
+        case SSI_INDEX_ANTSTATUS:
+        {   
+            memset(tmp_buf, '\0', GNSS_STATELLITE_INFO_LEN);
+            get_gnss_info("ANT", '\0', ";", tmp_buf);
+            iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='antst' style='width:152' disabled='true' value='" );
+            if( iCount < iInsertLen )
+            {
+
+                 iCount +=
+                    ConfigEncodeFormString( ( char* )tmp_buf,
+                                            pcInsert + iCount,
+                                            iInsertLen - iCount );
+            }
+            if( iCount < iInsertLen )
+            {
+                iCount +=
+                    usnprintf( pcInsert + iCount, iInsertLen - iCount,
+                               "'");
+            }
+            return( iCount );
+           
+        }
+        
+        //
+        //Insert gnss post status tag mark,when onload html.
+        //
+        case SSI_INDEX_POSTSTATUS:
+        {   
+            memset(tmp_buf, '\0', GNSS_STATELLITE_INFO_LEN);
+            get_gnss_info("PPS", '\0', ";", tmp_buf);
+            iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='postst' style='width:152' disabled='true' value='" );
+            if( iCount < iInsertLen )
+            {
+
+                 if(tmp_buf[0] == '1')
+                     iCount +=
+                        ConfigEncodeFormString( ( char* )"post",
+                                                pcInsert + iCount,
+                                                iInsertLen - iCount );
+                 else
+                     iCount +=
+                        ConfigEncodeFormString( ( char* )"hold",
+                                                pcInsert + iCount,
+                                                iInsertLen - iCount );
+                 
+            }
+            if( iCount < iInsertLen )
+            {
+                iCount +=
+                    usnprintf( pcInsert + iCount, iInsertLen - iCount,
+                               "'");
+            }
+            return( iCount );
+           
+        }
+        
+        //
+        //Insert gnss post satelite num tag mark,when onload html.
+        //
+        case SSI_INDEX_POSTNUM:
+        {   
+            memset(tmp_buf, '\0', GNSS_STATELLITE_INFO_LEN);
+            get_gnss_info("LOC", '\0', ",", tmp_buf);
+            iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='postnum' style='width:152' disabled='true' value='" );
+            if( iCount < iInsertLen )
+            {
+
+                  iCount +=
+                        ConfigEncodeFormString( ( char* )tmp_buf,
+                                                pcInsert + iCount,
+                                                iInsertLen - iCount );
+                 
+            }
+            if( iCount < iInsertLen )
+            {
+                iCount +=
+                    usnprintf( pcInsert + iCount, iInsertLen - iCount,
+                               "'");
+            }
+            return( iCount );
+           
+        }
+        //
+        //Insert gnss 1pps status tag mark,when onload html.
+        //
+        case SSI_INDEX_PPSSTATUS:
+        {   
+            memset(tmp_buf, '\0', GNSS_STATELLITE_INFO_LEN);
+            get_gnss_info("PPS", '\0', ";", tmp_buf);
+            iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='ppsst' style='width:152' disabled='true' value='" );
+            if( iCount < iInsertLen )
+            {
+
+                  iCount +=
+                        ConfigEncodeFormString( ( char* )tmp_buf,
+                                                pcInsert + iCount,
+                                                iInsertLen - iCount );
+                 
+            }
+            if( iCount < iInsertLen )
+            {
+                iCount +=
+                    usnprintf( pcInsert + iCount, iInsertLen - iCount,
+                               "'");
+            }
+            return( iCount );
+           
+        }
+        
+        //
+        //Insert prede leap tag mark,when onload html.
+        //
+        case SSI_INDEX_PRELEAP:
+        {   
+            memset(tmp_buf, '\0', GNSS_STATELLITE_INFO_LEN);
+            get_gnss_info("LEAP", ',', ";", tmp_buf);
+            iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='preleap' style='width:152' disabled='true' value='" );
+            if( iCount < iInsertLen )
+            {
+
+                  iCount +=
+                        ConfigEncodeFormString( ( char* )tmp_buf,
+                                                pcInsert + iCount,
+                                                iInsertLen - iCount );
+                 
+            }
+            if( iCount < iInsertLen )
+            {
+                iCount +=
+                    usnprintf( pcInsert + iCount, iInsertLen - iCount,
+                               "'");
+            }
+            return( iCount );
+           
+        }
+        
+        //
+        //Insert  leap tag mark,when onload html.
+        //
+        case SSI_INDEX_LEAP:
+        {   
+            memset(tmp_buf, '\0', GNSS_STATELLITE_INFO_LEN);
+            split_gnss_info("LEAP", ',', ',', 5, 6, tmp_buf);
+            iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='leap' style='width:152' disabled='true' value='" );
+            if( iCount < iInsertLen )
+            {
+
+                  iCount +=
+                        ConfigEncodeFormString( ( char* )tmp_buf,
+                                                pcInsert + iCount,
+                                                iInsertLen - iCount );
+                 
+            }
+            if( iCount < iInsertLen )
+            {
+                iCount +=
+                    usnprintf( pcInsert + iCount, iInsertLen - iCount,
+                               "'");
+            }
+            return( iCount );
+           
+        }
+        
+         //
+        //Insert  UTC time tag mark,when onload html.
+        //
+        case SSI_INDEX_UTC:
+        {   
+            memset(tmp_buf, '\0', GNSS_STATELLITE_INFO_LEN);
+            get_gnss_info("TIME", '\0', ";", tmp_buf);
+            iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='utc' style='width:152' disabled='true' value='" );
+            if( iCount < iInsertLen )
+            {
+
+                  iCount +=
+                        ConfigEncodeFormString( ( char* )tmp_buf,
+                                                pcInsert + iCount,
+                                                iInsertLen - iCount );
+                 
+            }
+            if( iCount < iInsertLen )
+            {
+                iCount +=
+                    usnprintf( pcInsert + iCount, iInsertLen - iCount,
+                               "'");
+            }
+            return( iCount );
+           
+        }
+        
+        //
+        //Insert  latitude tag mark,when onload html.
+        //
+        case SSI_INDEX_LATITUDE:
+        {   
+            memset(tmp_buf, '\0', GNSS_STATELLITE_INFO_LEN);
+            split_gnss_info("LOC", ',', ',', 2, 4, tmp_buf);
+            iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='lat' style='width:152' disabled='true' value='" );
+            if( iCount < iInsertLen )
+            {
+
+                  iCount +=
+                        ConfigEncodeFormString( ( char* )tmp_buf,
+                                                pcInsert + iCount,
+                                                iInsertLen - iCount );
+                 
+            }
+            if( iCount < iInsertLen )
+            {
+                iCount +=
+                    usnprintf( pcInsert + iCount, iInsertLen - iCount,
+                               "'");
+            }
+            return( iCount );
+           
+        }
+         //
+        //Insert  longitude tag mark,when onload html.
+        //
+        case SSI_INDEX_LONGITUDE:
+        {   
+            memset(tmp_buf, '\0', GNSS_STATELLITE_INFO_LEN);
+            split_gnss_info("LOC", ',', ',', 4, 6, tmp_buf);
+            iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='longti' style='width:152' disabled='true' value='" );
+            if( iCount < iInsertLen )
+            {
+
+                  iCount +=
+                        ConfigEncodeFormString( ( char* )tmp_buf,
+                                                pcInsert + iCount,
+                                                iInsertLen - iCount );
+                 
+            }
+            if( iCount < iInsertLen )
+            {
+                iCount +=
+                    usnprintf( pcInsert + iCount, iInsertLen - iCount,
+                               "'");
+            }
+            return( iCount );
+           
+        }
+        //
+        //Insert  altitude tag mark,when onload html.
+        //
+        case SSI_INDEX_ALTITUDE:
+        {   
+            memset(tmp_buf, '\0', GNSS_STATELLITE_INFO_LEN);
+            get_gnss_info("LOC", ',', ";", tmp_buf);
+            iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='altitu' style='width:152' disabled='true' value='" );
+            if( iCount < iInsertLen )
+            {
+
+                  iCount +=
+                        ConfigEncodeFormString( ( char* )tmp_buf,
+                                                pcInsert + iCount,
+                                                iInsertLen - iCount );
+                 
+            }
+            if( iCount < iInsertLen )
+            {
+                iCount +=
+                    usnprintf( pcInsert + iCount, iInsertLen - iCount,
+                               "'");
+            }
+            return( iCount );
+           
+        }
+        //
+        //Insert  gnss mode tag mark,when onload html.
+        //
+        case SSI_INDEX_GNSSMODE:
+        {   
+            memset(tmp_buf, '\0', GNSS_STATELLITE_INFO_LEN);
+            get_gnss_info("VER", '\0', ";", tmp_buf);
+            iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='gnssmd' style='width:152' disabled='true' value='" );
+            if( iCount < iInsertLen )
+            {
+
+                  iCount +=
+                        ConfigEncodeFormString( ( char* )tmp_buf,
+                                                pcInsert + iCount,
+                                                iInsertLen - iCount );
+                 
+            }
+            if( iCount < iInsertLen )
+            {
+                iCount +=
+                    usnprintf( pcInsert + iCount, iInsertLen - iCount,
+                               "'");
+            }
+            return( iCount );
+           
+        }
+        
+        //
+        //Insert  satellite GPS tag mark,when onload html.
+        //
+        case SSI_INDEX_GPS:
+        {   
+            memset(tmp_buf, '\0', GNSS_STATELLITE_INFO_LEN);
+            split1_gnss_info("SAT", "GPS", ';',tmp_buf);
+            iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='gps' style='width:152' disabled='true' value='" );
+            if( iCount < iInsertLen )
+            {
+
+                  iCount +=
+                        ConfigEncodeFormString( ( char* )tmp_buf,
+                                                pcInsert + iCount,
+                                                iInsertLen - iCount );
+                 
+            }
+            if( iCount < iInsertLen )
+            {
+                iCount +=
+                    usnprintf( pcInsert + iCount, iInsertLen - iCount,
+                               "'");
+            }
+            return( iCount );
+           
+        }
+        
+         //
+        //Insert  satellite BDS tag mark,when onload html.
+        //
+        case SSI_INDEX_BDS:
+        {   
+            memset(tmp_buf, '\0', GNSS_STATELLITE_INFO_LEN);
+            split1_gnss_info("SAT", "BDS", ';', tmp_buf);
+            iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='bds' style='width:152' disabled='true' value='" );
+            if( iCount < iInsertLen )
+            {
+
+                  iCount +=
+                        ConfigEncodeFormString( ( char* )tmp_buf,
+                                                pcInsert + iCount,
+                                                iInsertLen - iCount );
+                 
+            }
+            if( iCount < iInsertLen )
+            {
+                iCount +=
+                    usnprintf( pcInsert + iCount, iInsertLen - iCount,
+                               "'");
+            }
+            return( iCount );
+           
+        }
+        //
+        //Insert  satellite GLO tag mark,when onload html.
+        //
+        case SSI_INDEX_GLO:
+        {   
+            memset(tmp_buf, '\0', GNSS_STATELLITE_INFO_LEN);
+            split1_gnss_info("SAT", "GLO", ';', tmp_buf);
+            iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='glo' style='width:152' disabled='true' value='" );
+            if( iCount < iInsertLen )
+            {
+
+                  iCount +=
+                        ConfigEncodeFormString( ( char* )tmp_buf,
+                                                pcInsert + iCount,
+                                                iInsertLen - iCount );
+                 
+            }
+            if( iCount < iInsertLen )
+            {
+                iCount +=
+                    usnprintf( pcInsert + iCount, iInsertLen - iCount,
+                               "'");
+            }
+            return( iCount );
+           
+        }
+        
+        //
+        //Insert  satellite GAL tag mark,when onload html.
+        //
+        case SSI_INDEX_GAL:
+        {   
+            memset(tmp_buf, '\0', GNSS_STATELLITE_INFO_LEN);
+            split1_gnss_info("SAT", "GAL", ';', tmp_buf);
+            iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='gal' style='width:152' disabled='true' value='" );
+            if( iCount < iInsertLen )
+            {
+
+                  iCount +=
+                        ConfigEncodeFormString( ( char* )tmp_buf,
+                                                pcInsert + iCount,
+                                                iInsertLen - iCount );
+                 
+            }
+            if( iCount < iInsertLen )
+            {
+                iCount +=
+                    usnprintf( pcInsert + iCount, iInsertLen - iCount,
+                               "'");
+            }
+            return( iCount );
+           
+        }
+        //
+        //Insert  reference type tag mark,when onload html.
+        //
+        case SSI_INDEX_REFTYPE:
+        {   
+            //memset(tmp_buf, '\0', GNSS_STATELLITE_INFO_LEN);
+            //split1_gnss_info("SAT", "GAL", ';', tmp_buf);
+            iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='reftype' style='width:152' disabled='true' value='" );
+            if( iCount < iInsertLen )
+            {
+
+                  iCount +=
+                        ConfigEncodeFormString( ( char* )"GNSS",
+                                                pcInsert + iCount,
+                                                iInsertLen - iCount );
+                 
+            }
+            if( iCount < iInsertLen )
+            {
+                iCount +=
+                    usnprintf( pcInsert + iCount, iInsertLen - iCount,
+                               "'");
+            }
+            return( iCount );
+           
+        }
+        
+        //
+        //Insert  clock type tag mark,when onload html.
+        //
+        case SSI_INDEX_CLKTYPE:
+        {   
+            //memset(tmp_buf, '\0', GNSS_STATELLITE_INFO_LEN);
+            //split1_gnss_info("SAT", "GAL", ';', tmp_buf);
+            iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='clktype' style='width:152' disabled='true' value='" );
+            if( iCount < iInsertLen )
+            {
+
+                  iCount +=
+                        ConfigEncodeFormString( ( char* )"OCXO",
+                                                pcInsert + iCount,
+                                                iInsertLen - iCount );
+                 
+            }
+            if( iCount < iInsertLen )
+            {
+                iCount +=
+                    usnprintf( pcInsert + iCount, iInsertLen - iCount,
+                               "'");
+            }
+            return( iCount );
+           
+        }
+        
+        //
+        //Insert  reference status tag mark,when onload html.
+        //
+//        case SSI_INDEX_REFSTATUS:
+//        {   
+//            iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='refstat' style='width:152' disabled='true' value='" );
+//            if( iCount < iInsertLen )
+//            {
+//
+//                  iCount +=
+//                        ConfigEncodeFormString( ( char* )"OCXO",
+//                                                pcInsert + iCount,
+//                                                iInsertLen - iCount );
+//                 
+//            }
+//            if( iCount < iInsertLen )
+//            {
+//                iCount +=
+//                    usnprintf( pcInsert + iCount, iInsertLen - iCount,
+//                               "'");
+//            }
+//            return( iCount );
+//           
+//        }
+        
+        
+        //SSI_INDEX_POSTSTATUSSSI_INDEX_POSTNUM SSI_INDEX_PPSSTATUS SSI_INDEX_PRELEAP 
         //
         //Insert the tag mark PTP ip address,when onload html.
         //
@@ -4657,336 +5327,336 @@ ConfigSSIHandler( int iIndex, char* pcInsert, int iInsertLen )
         // Generate an HTML text input field containing the current hours of swtith boot time.
         //
         //
-        case SSI_INDEX_BOOTMVARS:
-        {
-            iCount = usnprintf( pcInsert, iInsertLen, "%s", JAVASCRIPT_HEADER );
-            if( iCount < iInsertLen )
-            {
+//        case SSI_INDEX_BOOTMVARS:
+//        {
+//            iCount = usnprintf( pcInsert, iInsertLen, "%s", JAVASCRIPT_HEADER );
+//            if( iCount < iInsertLen )
+//            {
+////                iCount += usnprintf( pcInsert + iCount, iInsertLen - iCount,
+////                                     BOOTM_JAVASCRIPT_VARS,
+////                                     ( g_sParameters.boottime[0].minute ),
+////                                     ( g_sParameters.boottime[1].minute ),
+////                                     ( g_sParameters.boottime[2].minute ),
+////                                     ( g_sParameters.boottime[3].minute )
+////                                   );
+//            }
+//            if( iCount < iInsertLen )
+//            {
 //                iCount += usnprintf( pcInsert + iCount, iInsertLen - iCount,
-//                                     BOOTM_JAVASCRIPT_VARS,
-//                                     ( g_sParameters.boottime[0].minute ),
-//                                     ( g_sParameters.boottime[1].minute ),
-//                                     ( g_sParameters.boottime[2].minute ),
-//                                     ( g_sParameters.boottime[3].minute )
-//                                   );
-            }
-            if( iCount < iInsertLen )
-            {
-                iCount += usnprintf( pcInsert + iCount, iInsertLen - iCount,
-                                     "%s", JAVASCRIPT_FOOTER );
-            }
-            return( iCount );
-        }
-        //
-        // Generate an HTML text input field containing the current hours of swtith shut time.
-        //
-        //
-        case SSI_INDEX_SHUTHVARS:
-        {
-            iCount = usnprintf( pcInsert, iInsertLen, "%s", JAVASCRIPT_HEADER );
-            if( iCount < iInsertLen )
-            {
+//                                     "%s", JAVASCRIPT_FOOTER );
+//            }
+//            return( iCount );
+//        }
+//        //
+//        // Generate an HTML text input field containing the current hours of swtith shut time.
+//        //
+//        //
+//        case SSI_INDEX_SHUTHVARS:
+//        {
+//            iCount = usnprintf( pcInsert, iInsertLen, "%s", JAVASCRIPT_HEADER );
+//            if( iCount < iInsertLen )
+//            {
+////                iCount += usnprintf( pcInsert + iCount, iInsertLen - iCount,
+////                                     SHUTH_JAVASCRIPT_VARS,
+////                                     ( g_sParameters.shuttime[0].hour ),
+////                                     ( g_sParameters.shuttime[1].hour ),
+////                                     ( g_sParameters.shuttime[2].hour ),
+////                                     ( g_sParameters.shuttime[3].hour )
+////                                   );
+//            }
+//            if( iCount < iInsertLen )
+//            {
 //                iCount += usnprintf( pcInsert + iCount, iInsertLen - iCount,
-//                                     SHUTH_JAVASCRIPT_VARS,
-//                                     ( g_sParameters.shuttime[0].hour ),
-//                                     ( g_sParameters.shuttime[1].hour ),
-//                                     ( g_sParameters.shuttime[2].hour ),
-//                                     ( g_sParameters.shuttime[3].hour )
-//                                   );
-            }
-            if( iCount < iInsertLen )
-            {
-                iCount += usnprintf( pcInsert + iCount, iInsertLen - iCount,
-                                     "%s", JAVASCRIPT_FOOTER );
-            }
-            return( iCount );
-        }
-        //
-        // Generate an HTML text input field containing the current hours of swtith shut time.
-        //
-        //
-        case SSI_INDEX_SHUTMVARS:
-        {
-            iCount = usnprintf( pcInsert, iInsertLen, "%s", JAVASCRIPT_HEADER );
-            if( iCount < iInsertLen )
-            {
+//                                     "%s", JAVASCRIPT_FOOTER );
+//            }
+//            return( iCount );
+//        }
+//        //
+//        // Generate an HTML text input field containing the current hours of swtith shut time.
+//        //
+//        //
+//        case SSI_INDEX_SHUTMVARS:
+//        {
+//            iCount = usnprintf( pcInsert, iInsertLen, "%s", JAVASCRIPT_HEADER );
+//            if( iCount < iInsertLen )
+//            {
+////                iCount += usnprintf( pcInsert + iCount, iInsertLen - iCount,
+////                                     SHUTM_JAVASCRIPT_VARS,
+////                                     ( g_sParameters.shuttime[0].minute ),
+////                                     ( g_sParameters.shuttime[1].minute ),
+////                                     ( g_sParameters.shuttime[2].minute ),
+////                                     ( g_sParameters.shuttime[3].minute )
+////                                   );
+//            }
+//            if( iCount < iInsertLen )
+//            {
 //                iCount += usnprintf( pcInsert + iCount, iInsertLen - iCount,
-//                                     SHUTM_JAVASCRIPT_VARS,
-//                                     ( g_sParameters.shuttime[0].minute ),
-//                                     ( g_sParameters.shuttime[1].minute ),
-//                                     ( g_sParameters.shuttime[2].minute ),
-//                                     ( g_sParameters.shuttime[3].minute )
-//                                   );
-            }
-            if( iCount < iInsertLen )
-            {
-                iCount += usnprintf( pcInsert + iCount, iInsertLen - iCount,
-                                     "%s", JAVASCRIPT_FOOTER );
-            }
-            return( iCount );
-        }
-        //
-        // Generate an HTML text input field containing the current regate count.
-        //
-        //
-        case SSI_INDEX_RGVARS:
-        {
-            iCount = usnprintf( pcInsert, iInsertLen, "%s", JAVASCRIPT_HEADER );
-            if( iCount < iInsertLen )
-            {
+//                                     "%s", JAVASCRIPT_FOOTER );
+//            }
+//            return( iCount );
+//        }
+//        //
+//        // Generate an HTML text input field containing the current regate count.
+//        //
+//        //
+//        case SSI_INDEX_RGVARS:
+//        {
+//            iCount = usnprintf( pcInsert, iInsertLen, "%s", JAVASCRIPT_HEADER );
+//            if( iCount < iInsertLen )
+//            {
+////                iCount += usnprintf( pcInsert + iCount, iInsertLen - iCount,
+////                                     REGATE_JAVASCRIPT_VARS,
+////                                     g_sParameters.rgcnt );
+//            }
+//            if( iCount < iInsertLen )
+//            {
 //                iCount += usnprintf( pcInsert + iCount, iInsertLen - iCount,
-//                                     REGATE_JAVASCRIPT_VARS,
-//                                     g_sParameters.rgcnt );
-            }
-            if( iCount < iInsertLen )
-            {
-                iCount += usnprintf( pcInsert + iCount, iInsertLen - iCount,
-                                     "%s", JAVASCRIPT_FOOTER );
-            }
-            return( iCount );
-        }
-        //
-        //
-        // regate delay1 first.
-        //
-        case SSI_INDEX_DELAY1:
-        {
-            iCount = usnprintf( pcInsert, iInsertLen, "<input value='" );
-            if( iCount < iInsertLen )
-            {
+//                                     "%s", JAVASCRIPT_FOOTER );
+//            }
+//            return( iCount );
+//        }
+//        //
+//        //
+//        // regate delay1 first.
+//        //
+//        case SSI_INDEX_DELAY1:
+//        {
+//            iCount = usnprintf( pcInsert, iInsertLen, "<input value='" );
+//            if( iCount < iInsertLen )
+//            {
+////                iCount += usnprintf( pcInsert + iCount, iInsertLen - iCount,
+////                                     "%d",
+////                                     g_sParameters.delay1
+////                                   );
+//            }
+//            if( iCount < iInsertLen )
+//            {
 //                iCount += usnprintf( pcInsert + iCount, iInsertLen - iCount,
-//                                     "%d",
-//                                     g_sParameters.delay1
-//                                   );
-            }
-            if( iCount < iInsertLen )
-            {
-                iCount += usnprintf( pcInsert + iCount, iInsertLen - iCount,
-                                     "' maxlength='5' size='15' name='rgdey1'>" );
-            }
-            return( iCount );
-        }
-        //
-        //
-        // regate delay1 second.
-        //
-        case SSI_INDEX_DELAY2:
-        {
-            iCount = usnprintf( pcInsert, iInsertLen, "<input value='" );
-            if( iCount < iInsertLen )
-            {
+//                                     "' maxlength='5' size='15' name='rgdey1'>" );
+//            }
+//            return( iCount );
+//        }
+//        //
+//        //
+//        // regate delay1 second.
+//        //
+//        case SSI_INDEX_DELAY2:
+//        {
+//            iCount = usnprintf( pcInsert, iInsertLen, "<input value='" );
+//            if( iCount < iInsertLen )
+//            {
+////                iCount += usnprintf( pcInsert + iCount, iInsertLen - iCount,
+////                                     "%d",
+////                                     g_sParameters.delay2
+////                                   );
+//            }
+//            if( iCount < iInsertLen )
+//            {
 //                iCount += usnprintf( pcInsert + iCount, iInsertLen - iCount,
-//                                     "%d",
-//                                     g_sParameters.delay2
-//                                   );
-            }
-            if( iCount < iInsertLen )
-            {
-                iCount += usnprintf( pcInsert + iCount, iInsertLen - iCount,
-                                     "' maxlength='5' size='15' name='rgdey2'>" );
-            }
-            return( iCount );
-        }
-        //
-        //
-        // regate delay3 second.
-        //
-        case SSI_INDEX_DELAY3:
-        {
-            iCount = usnprintf( pcInsert, iInsertLen, "<input value='" );
-            if( iCount < iInsertLen )
-            {
+//                                     "' maxlength='5' size='15' name='rgdey2'>" );
+//            }
+//            return( iCount );
+//        }
+//        //
+//        //
+//        // regate delay3 second.
+//        //
+//        case SSI_INDEX_DELAY3:
+//        {
+//            iCount = usnprintf( pcInsert, iInsertLen, "<input value='" );
+//            if( iCount < iInsertLen )
+//            {
+////                iCount += usnprintf( pcInsert + iCount, iInsertLen - iCount,
+////                                     "%d",
+////                                     g_sParameters.delay3
+////                                   );
+//            }
+//            if( iCount < iInsertLen )
+//            {
 //                iCount += usnprintf( pcInsert + iCount, iInsertLen - iCount,
-//                                     "%d",
-//                                     g_sParameters.delay3
-//                                   );
-            }
-            if( iCount < iInsertLen )
-            {
-                iCount += usnprintf( pcInsert + iCount, iInsertLen - iCount,
-                                     "' maxlength='5' size='15' name='rgdey3'>" );
-            }
-            return( iCount );
-        }
-        //
-        // Return the user-editable friendly name for the module.
-        //
-        case SSI_INDEX_MODENAME:
-        {
-            iCount = usnprintf( pcInsert, iInsertLen, "<input value='" );
-            if( iCount < iInsertLen )
-            {
+//                                     "' maxlength='5' size='15' name='rgdey3'>" );
+//            }
+//            return( iCount );
+//        }
+//        //
+//        // Return the user-editable friendly name for the module.
+//        //
+//        case SSI_INDEX_MODENAME:
+//        {
+//            iCount = usnprintf( pcInsert, iInsertLen, "<input value='" );
+//            if( iCount < iInsertLen )
+//            {
+////                iCount +=
+////                    ConfigEncodeFormString( ( char* )g_sParameters.ucModName,
+////                                            pcInsert + iCount,
+////                                            iInsertLen - iCount );
+//            }
+//            if( iCount < iInsertLen )
+//            {
 //                iCount +=
-//                    ConfigEncodeFormString( ( char* )g_sParameters.ucModName,
+//                    usnprintf( pcInsert + iCount, iInsertLen - iCount,
+//                               "' maxlength='%d' size='%d' name='modname'>",
+//                               ( MOD_NAME_LEN - 1 ), MOD_NAME_LEN );
+//            }
+//            return( iCount );
+//        }
+//        //
+//        // Return the user-editable model name for the module.
+//        //
+//        case SSI_INDEX_MODEL:
+//        {
+//            iCount = usnprintf( pcInsert, iInsertLen, "<input value='" );
+//            if( iCount < iInsertLen )
+//            {
+//                iCount +=
+//                    ConfigEncodeFormString( ( char* )g_sParameters.Model,
 //                                            pcInsert + iCount,
 //                                            iInsertLen - iCount );
-            }
-            if( iCount < iInsertLen )
-            {
-                iCount +=
-                    usnprintf( pcInsert + iCount, iInsertLen - iCount,
-                               "' maxlength='%d' size='%d' name='modname'>",
-                               ( MOD_NAME_LEN - 1 ), MOD_NAME_LEN );
-            }
-            return( iCount );
-        }
-        //
-        // Return the user-editable model name for the module.
-        //
-        case SSI_INDEX_MODEL:
-        {
-            iCount = usnprintf( pcInsert, iInsertLen, "<input value='" );
-            if( iCount < iInsertLen )
-            {
-                iCount +=
-                    ConfigEncodeFormString( ( char* )g_sParameters.Model,
-                                            pcInsert + iCount,
-                                            iInsertLen - iCount );
-            }
-            if( iCount < iInsertLen )
-            {
-                iCount +=
-                    usnprintf( pcInsert + iCount, iInsertLen - iCount,
-                               "' maxlength='%d' size='%d' name='model'>",
-                               ( DEVICE_INFO_LEN - 1 ), DEVICE_INFO_LEN );
-            }
-            return( iCount );
-        }
-        //
-        // Return the user-editable friendly manufacture for the module.
-        //
-        case SSI_INDEX_MANUFACT:
-        {
-            iCount = usnprintf( pcInsert, iInsertLen, "<input value='" );
-            if( iCount < iInsertLen )
-            {
-                iCount +=
-                    ConfigEncodeFormString( ( char* )g_sParameters.Manufacturer,
-                                            pcInsert + iCount,
-                                            iInsertLen - iCount );
-            }
-            if( iCount < iInsertLen )
-            {
-                iCount +=
-                    usnprintf( pcInsert + iCount, iInsertLen - iCount,
-                               "' maxlength='%d' size='%d' name='manu'>",
-                               ( DEVICE_INFO_LEN - 1 ), DEVICE_INFO_LEN );
-            }
-            return( iCount );
-        }
-        //
-        // Generate an HTML text input field containing serial
-        // number.
-        //
-        case SSI_INDEX_SERIAL:
-        {
-            return( usnprintf( pcInsert, iInsertLen,
-                               "<input value='%s' maxlength='12' size='30' "
-                               "name='ser'>", g_sParameters.Serial ) );
-        }
-        //
-        // Return the user-editable friendly install position for the module.
-        //
-        case SSI_INDEX_POSITION:
-        {
-            iCount = usnprintf( pcInsert, iInsertLen, "<input value='" );
-            if( iCount < iInsertLen )
-            {
-                iCount +=
-                    ConfigEncodeFormString( ( char* )g_sParameters.InstallPos,
-                                            pcInsert + iCount,
-                                            iInsertLen - iCount );
-            }
-            if( iCount < iInsertLen )
-            {
-                iCount +=
-                    usnprintf( pcInsert + iCount, iInsertLen - iCount,
-                               "' maxlength='%d' size='%d' name='pos'>",
-                               ( DEVICE_INFO_LEN - 1 ), DEVICE_INFO_LEN );
-            }
-            return( iCount );
-        }
-        //
-        // Return the user-editable friendly install persion for the module.
-        //
-        case SSI_INDEX_INSTALPERSON:
-        {
-            iCount = usnprintf( pcInsert, iInsertLen, "<input value='" );
-            if( iCount < iInsertLen )
-            {
-                iCount +=
-                    ConfigEncodeFormString( ( char* )g_sParameters.InstallPer,
-                                            pcInsert + iCount,
-                                            iInsertLen - iCount );
-            }
-            if( iCount < iInsertLen )
-            {
-                iCount +=
-                    usnprintf( pcInsert + iCount, iInsertLen - iCount,
-                               "' maxlength='%d' size='%d' name='insper'>",
-                               ( DEVICE_INFO_LEN - 1 ), DEVICE_INFO_LEN );
-            }
-            return( iCount );
-        }
-        //
-        // The local MAC address tag "macaddr".
-        //
-        case SSI_INDEX_INSTALTIME:
-        {
-            iCount = usnprintf( pcInsert, iInsertLen, "<input value='" );
-            if( iCount < iInsertLen )
-            {
-                iCount += usnprintf( pcInsert + iCount, iInsertLen - iCount,
-                                     "%s",
-                                     g_sParameters.InstallTime
-                                   );
-            }
-            if( iCount < iInsertLen )
-            {
-                iCount += usnprintf( pcInsert + iCount, iInsertLen - iCount,
-                                     "' maxlength='19' size='30' name='instime'>" );
-            }
-            return( iCount );
-        }
-        //
-        // The run time.
-        //
-        case SSI_INDEX_RUNTIME://
-        {
-            unsigned long ucRunDay = g_sParameters.RunSecond / 86400;
-            unsigned long ucRunHour = g_sParameters.RunSecond % 86400 / 3600;
-            unsigned long ucRunMinute = g_sParameters.RunSecond % 86400 % 3600 / 60;
-            unsigned long ucRunSecond = g_sParameters.RunSecond % 86400 % 3600 % 60;
-            if( old_SysRunDay != ucRunDay )
-            {
-                g_sWorkingDefaultParameters = g_sParameters;
-                ConfigSave();
-            }
-            old_SysRunDay = ucRunDay;
-            return( usnprintf( pcInsert, iInsertLen, "%d day %d:%d:%d",
-                               ucRunDay, ucRunHour, ucRunMinute, ucRunSecond ) );
-        }
-        //
-        // The Firmware Version number tag, "revision".
-        //
-        case SSI_INDEX_SOFTVER://
-        {
-            return( usnprintf( pcInsert, iInsertLen, "%s",
-                               "V1.0" ) );
-        }
-        //
-        // The Firmware Version number tag, "revision".
-        //
-        case SSI_INDEX_HARDVER://
-        {
-            return( usnprintf( pcInsert, iInsertLen, "%s",
-                               "T1.0" ) );
-        }
-        case SSI_INDEX_CURTIME:
-        {
-            return( usnprintf( pcInsert, iInsertLen, "%d-%d-%d  %d:%d:%d",
-                               0,0,0,0,0,0) ); //
-        }
+//            }
+//            if( iCount < iInsertLen )
+//            {
+//                iCount +=
+//                    usnprintf( pcInsert + iCount, iInsertLen - iCount,
+//                               "' maxlength='%d' size='%d' name='model'>",
+//                               ( DEVICE_INFO_LEN - 1 ), DEVICE_INFO_LEN );
+//            }
+//            return( iCount );
+//        }
+//        //
+//        // Return the user-editable friendly manufacture for the module.
+//        //
+//        case SSI_INDEX_MANUFACT:
+//        {
+//            iCount = usnprintf( pcInsert, iInsertLen, "<input value='" );
+//            if( iCount < iInsertLen )
+//            {
+//                iCount +=
+//                    ConfigEncodeFormString( ( char* )g_sParameters.Manufacturer,
+//                                            pcInsert + iCount,
+//                                            iInsertLen - iCount );
+//            }
+//            if( iCount < iInsertLen )
+//            {
+//                iCount +=
+//                    usnprintf( pcInsert + iCount, iInsertLen - iCount,
+//                               "' maxlength='%d' size='%d' name='manu'>",
+//                               ( DEVICE_INFO_LEN - 1 ), DEVICE_INFO_LEN );
+//            }
+//            return( iCount );
+//        }
+//        //
+//        // Generate an HTML text input field containing serial
+//        // number.
+//        //
+//        case SSI_INDEX_SERIAL:
+//        {
+//            return( usnprintf( pcInsert, iInsertLen,
+//                               "<input value='%s' maxlength='12' size='30' "
+//                               "name='ser'>", g_sParameters.Serial ) );
+//        }
+//        //
+//        // Return the user-editable friendly install position for the module.
+//        //
+//        case SSI_INDEX_POSITION:
+//        {
+//            iCount = usnprintf( pcInsert, iInsertLen, "<input value='" );
+//            if( iCount < iInsertLen )
+//            {
+//                iCount +=
+//                    ConfigEncodeFormString( ( char* )g_sParameters.InstallPos,
+//                                            pcInsert + iCount,
+//                                            iInsertLen - iCount );
+//            }
+//            if( iCount < iInsertLen )
+//            {
+//                iCount +=
+//                    usnprintf( pcInsert + iCount, iInsertLen - iCount,
+//                               "' maxlength='%d' size='%d' name='pos'>",
+//                               ( DEVICE_INFO_LEN - 1 ), DEVICE_INFO_LEN );
+//            }
+//            return( iCount );
+//        }
+//        //
+//        // Return the user-editable friendly install persion for the module.
+//        //
+//        case SSI_INDEX_INSTALPERSON:
+//        {
+//            iCount = usnprintf( pcInsert, iInsertLen, "<input value='" );
+//            if( iCount < iInsertLen )
+//            {
+//                iCount +=
+//                    ConfigEncodeFormString( ( char* )g_sParameters.InstallPer,
+//                                            pcInsert + iCount,
+//                                            iInsertLen - iCount );
+//            }
+//            if( iCount < iInsertLen )
+//            {
+//                iCount +=
+//                    usnprintf( pcInsert + iCount, iInsertLen - iCount,
+//                               "' maxlength='%d' size='%d' name='insper'>",
+//                               ( DEVICE_INFO_LEN - 1 ), DEVICE_INFO_LEN );
+//            }
+//            return( iCount );
+//        }
+//        //
+//        // The local MAC address tag "macaddr".
+//        //
+//        case SSI_INDEX_INSTALTIME:
+//        {
+//            iCount = usnprintf( pcInsert, iInsertLen, "<input value='" );
+//            if( iCount < iInsertLen )
+//            {
+//                iCount += usnprintf( pcInsert + iCount, iInsertLen - iCount,
+//                                     "%s",
+//                                     g_sParameters.InstallTime
+//                                   );
+//            }
+//            if( iCount < iInsertLen )
+//            {
+//                iCount += usnprintf( pcInsert + iCount, iInsertLen - iCount,
+//                                     "' maxlength='19' size='30' name='instime'>" );
+//            }
+//            return( iCount );
+//        }
+//        //
+//        // The run time.
+//        //
+//        case SSI_INDEX_RUNTIME://
+//        {
+//            unsigned long ucRunDay = g_sParameters.RunSecond / 86400;
+//            unsigned long ucRunHour = g_sParameters.RunSecond % 86400 / 3600;
+//            unsigned long ucRunMinute = g_sParameters.RunSecond % 86400 % 3600 / 60;
+//            unsigned long ucRunSecond = g_sParameters.RunSecond % 86400 % 3600 % 60;
+//            if( old_SysRunDay != ucRunDay )
+//            {
+//                g_sWorkingDefaultParameters = g_sParameters;
+//                ConfigSave();
+//            }
+//            old_SysRunDay = ucRunDay;
+//            return( usnprintf( pcInsert, iInsertLen, "%d day %d:%d:%d",
+//                               ucRunDay, ucRunHour, ucRunMinute, ucRunSecond ) );
+//        }
+//        //
+//        // The Firmware Version number tag, "revision".
+//        //
+//        case SSI_INDEX_SOFTVER://
+//        {
+//            return( usnprintf( pcInsert, iInsertLen, "%s",
+//                               "V1.0" ) );
+//        }
+//        //
+//        // The Firmware Version number tag, "revision".
+//        //
+//        case SSI_INDEX_HARDVER://
+//        {
+//            return( usnprintf( pcInsert, iInsertLen, "%s",
+//                               "T1.0" ) );
+//        }
+//        case SSI_INDEX_CURTIME:
+//        {
+//            return( usnprintf( pcInsert, iInsertLen, "%d-%d-%d  %d:%d:%d",
+//                               0,0,0,0,0,0) ); //
+//        }
         //
         // All other tags are unknown.
         //

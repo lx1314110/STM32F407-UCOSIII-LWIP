@@ -259,9 +259,9 @@ command_exit:
 //the command excute fuction.
 uint16_t command_exec(uint8_t *com_in,uint8_t len,uint8_t netflag)
 {
-    uint8_t* tempch;
+    //uint8_t* tempch;
     uint8_t  tempstr[32];
-    uint8_t  sendstr[32];
+    //uint8_t  sendstr[32];
     uint16_t j;
     u32_t U32_IP = 0;
     uint8_t  ucmac[6];
@@ -459,7 +459,7 @@ uint16_t command_exec(uint8_t *com_in,uint8_t len,uint8_t netflag)
     {
    	if (!Checkin(com_in+5,len-6,2)) goto err;
       	memcpy(tempstr,com_in+5,len-6);
-        U32_IP =GetCfgIPaddr(tempstr);
+        U32_IP =GetCfgIPaddr((char *)tempstr);
         if(U32_IP)
         {
           g_sParameters.ulSubnetMask = U32_IP;
@@ -474,7 +474,7 @@ uint16_t command_exec(uint8_t *com_in,uint8_t len,uint8_t netflag)
     {
    	if (!Checkin(com_in+5,len-6,2)) goto err;
       	memcpy(tempstr,com_in+5,len-6);
-        U32_IP =GetCfgIPaddr(tempstr);
+        U32_IP =GetCfgIPaddr((char*)tempstr);
         if(U32_IP)
         {
           g_sParameters.ulGatewayIP = U32_IP;
@@ -488,7 +488,7 @@ uint16_t command_exec(uint8_t *com_in,uint8_t len,uint8_t netflag)
     {
    	if (!Checkin(com_in+5,len-6,2)) goto err;
       	memcpy(tempstr,com_in+5,len-6);
-        U32_IP =GetCfgIPaddr(tempstr);
+        U32_IP =GetCfgIPaddr((char*)tempstr);
         if(U32_IP)
         {
           g_sParameters.ulDNSAddr = U32_IP;
@@ -657,7 +657,7 @@ void shell_Maintask(void)
 }
 void Shell_Server_Task(void)
 {
-  OS_ERR err;
+  //OS_ERR err;
   sys_thread_new("SHELL", Task_SHELL, NULL, DEFAULT_THREAD_STACKSIZE, SHELLSERVER_THREAD_PRIO);
 
 }

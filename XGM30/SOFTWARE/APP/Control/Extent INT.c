@@ -3,8 +3,8 @@
 #include "Extent INT.h"
 //
 //!EXTI INPUT PIN  == GPIO_Pin_5
-#define PULSE_IN_PIN      GPIO_Pin_5
-#define PULSE_EXTI_CLOCK  RCC_AHB1Periph_GPIOB
+#define PULSE_IN_PIN      GPIO_Pin_9
+#define PULSE_EXTI_CLOCK  RCC_AHB1Periph_GPIOC
 
 static  const u16_t PULSE_INPUT_PIN =
 {

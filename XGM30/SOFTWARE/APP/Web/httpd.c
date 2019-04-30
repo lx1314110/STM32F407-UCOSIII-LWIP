@@ -2080,7 +2080,7 @@ static void httpd_init_addr(struct ip_addr *local_addr)
   unsigned short webport;
   webport= g_sParameters.webport;
   pcb = tcp_new();
-  //pcb->so_options |= SOF_KEEPALIVE;
+  pcb->so_options |= SOF_KEEPALIVE;
   LWIP_ASSERT("httpd_init: tcp_new failed", pcb != NULL);
   tcp_setprio(pcb, HTTPD_TCP_PRIO);
   /* set SOF_REUSEADDR here to explicitly bind httpd to multiple interfaces */

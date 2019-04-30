@@ -9,7 +9,7 @@ TriggerName=main
 LimitSize=0
 ByteLimit=50
 [DebugChecksum]
-Checksum=697527592
+Checksum=-1506512914
 [Exceptions]
 StopOnUncaught=_ 0
 StopOnThrow=_ 0
@@ -122,7 +122,8 @@ Exclusions=
 [Disassemble mode]
 mode=0
 [Breakpoints2]
-Count=0
+Bp0=_ 1 "EMUL_CODE" "{$PROJ_DIR$\APP\Debug\user_cmd.c}.67.5" 0 0 1 "" 0 "" 0
+Count=1
 [Aliases]
 A0=_ "C:\Users\changzehai\Desktop\EPMA14-320151210\EPMA14-320151210\EPMA14-3\uCOS-III-and-LwIP1.4.0-to-STM32\uCOSIII-LwIP-Port-STM32F2XX\SOFTWARE\APP\src\app.c" ""
 A1=_ "C:\Users\changzehai\Desktop\EPMA14-320151210\EPMA14-320151210\EPMA14-3\uCOS-III-and-LwIP1.4.0-to-STM32\uCOSIII-LwIP-Port-STM32F2XX\SOFTWARE\uC-CPU\cpu_core.c" ""

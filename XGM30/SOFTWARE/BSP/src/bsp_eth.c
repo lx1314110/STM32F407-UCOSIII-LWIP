@@ -571,7 +571,7 @@ void Eth_Link_EXTIConfig(void)
 {
   GPIO_InitTypeDef GPIO_InitStructure;
   EXTI_InitTypeDef EXTI_InitStructure;
-  NVIC_InitTypeDef NVIC_InitStructure;
+ //NVIC_InitTypeDef NVIC_InitStructure;
 
   /* Enable the INT (PD11) Clock */
   RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE);

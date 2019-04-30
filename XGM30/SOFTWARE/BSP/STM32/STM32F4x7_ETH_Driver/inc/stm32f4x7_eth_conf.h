@@ -111,7 +111,7 @@
 /* The DP83848 PHY: MII Interrupt Status and Misc. Control Register */
 #define PHY_MISR               ((uint16_t)0x12)   /* MII Interrupt Status and Misc. Control Register */
 #define PHY_MISR_LINK_INT_EN   ((uint16_t)0x0020) /* Enable Interrupt on change of link status */
-#define PHY_LINK_STATUS        ((uint16_t)0x2000) /* PHY link status interrupt mask */
+//#define PHY_LINK_STATUS        ((uint16_t)0x2000) /* PHY link status interrupt mask */
 
    /* Note : Common PHY registers are defined in stm32f4x7_eth.h file */
 

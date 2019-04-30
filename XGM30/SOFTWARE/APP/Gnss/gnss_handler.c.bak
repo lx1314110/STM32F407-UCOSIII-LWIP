@@ -1,0 +1,282 @@
+/*****************************************************************************/
+/* 文件名:    gnss_handler.c                                                 */
+/* 描  述:    GNSS相关设置/查询处理                                          */
+/* 创  建:    2018-07-20 changzehai(DTT)                                     */
+/* 更  新:    无                                                             */
+/* Copyright 1998 - 2018 DTT. All Rights Reserved                            */
+/*****************************************************************************/
+#include "Input/gnss_handler.h"
+#include "Input/gnss_receiver.h"
+#include "mtfs30.h"
+#include "Debug/mtfs30_debug.h"
+#include "Util/util.h"
+#include "BSP/inc/bsp_spi.h"
+
+/*-------------------------------*/
+/* 变量声明                      */
+/*-------------------------------*/
+extern gnss_leap_t             g_leap;                /* 闰秒               */
+extern gnss_info_t             g_gnss_info;           /* GNSS信息           */
+extern u8_t                    g_gnss_init_finished_flag; /* 卫星初始化完成标志 */
+extern u8_t                    g_gnss_echo_switch;    /* 卫星语句回显开关   */
+extern u8_t                    g_debug_switch;        /* 串口调试开关变量   */
+extern u8_t                    g_gnss_cmd_send_flag;      /*  卫星命令发送标志 */
+
+
+/*****************************************************************************
+ * 函  数:    gnss_global_variable_init                                                          
+ * 功  能:    初始化GNSS全局变量                                                               
+ * 输  入:    无                          
+ * 输  出:    无                                                    
+ * 返回值:    无                                                    
+ * 创  建:    2018-07-18 changzehai(DTT)                            
+ * 更  新:    无                                       
+ ****************************************************************************/
+void gnss_global_variable_init(void)
+{
+  
+    /* 卫星初始化完成标志 */
+    g_gnss_init_finished_flag = 0;
+    
+    /* 用户发送卫星模块命令标志 */
+    g_gnss_cmd_send_flag = 0;
+    
+    /* 卫星语句回显开关 */
+    g_gnss_echo_switch = 0;
+    
+    /* 闰秒 */
+    g_leap.now_leap = 18; /* 当前闰秒 */
+    g_leap.next_leap = 18; /* 下次闰秒 */
+    g_leap.sign = 0;      /* 0： 无闰秒预告; 1:正闰秒; 2：负闰秒 */
+    
+    /* 闰秒信息 */
+    strcpy((char *)g_gnss_info.leap.info, "235960,31,12,2016,18,18,00;");
+    
+    /* 时间信息 */
+    strcpy((char *)g_gnss_info.time.info, "000000.00,00,00,0000;");
+    
+    /* 定位信息 */
+    strcpy((char *)g_gnss_info.loc.info, "00,000000.00,0000.00000000,N,00000.00000000,E,000.0000;");
+    
+    /* 卫星信息 */
+    memset(&g_gnss_info.sat, 0x00, sizeof(g_gnss_info.sat));
+    
+    /* 1PPS状态信息 */
+    strcpy((char *)g_gnss_info.pps.info, "0;");  
+    
+    /* 天线状态信息 */
+    strcpy((char *)g_gnss_info.ant.info, "OFF;");
+    
+    /* 版本信息 */
+    strcpy((char *)g_gnss_info.ver.info, "UT4B0,000000000000000;");    
+
+}
+
+/*****************************************************************************
+ * 函  数:    gnss_info_clear                                                         
+ * 功  能:    清除保存的GNSS信息                                                               
+ * 输  入:    无                          
+ * 输  出:    无                                                    
+ * 返回值:    无                                                    
+ * 创  建:    2018-07-18 changzehai(DTT)                            
+ * 更  新:    无                                       
+ ****************************************************************************/
+void gnss_info_clear(void)
+{
+
+
+    /* 时间信息 */
+    strcpy((char *)g_gnss_info.time.info, "000000.00,00,00,0000;");
+
+    /* 定位信息 */
+    strcpy((char *)g_gnss_info.loc.info, "00,000000.00,0000.00000000,N,00000.00000000,E,000.0000;");
+
+    /* 卫星信息 */
+    memset(&g_gnss_info.sat, 0x00, sizeof(g_gnss_info.sat));
+
+    /* 闰秒信息 */
+    strcpy((char *)g_gnss_info.leap.info, "235960,31,12,2016,18,18,00;");
+
+    /* 1PPS状态信息 */
+    strcpy((char *)g_gnss_info.pps.info, "0;"); 
+
+    /* 天线状态信息 */
+    strcpy((char *)g_gnss_info.ant.info, "OFF;");
+
+    /* 版本信息 */
+    strcpy((char *)g_gnss_info.ver.info, "UT4B0,000000000000000;");
+
+}
+
+
+/*****************************************************************************
+ * 函  数:    gnss_info_print                                                         
+ * 功  能:    打印GNSS信息                                                               
+ * 输  入:    无                          
+ * 输  出:    无                                                    
+ * 返回值:    无                                                    
+ * 创  建:    2018-07-18 changzehai(DTT)                            
+ * 更  新:    无                                       
+ ****************************************************************************/
+void gnss_info_print(void)
+{
+    u8_t buf[400];
+    
+    
+
+    /* 打印GNSS工作模式信息 */
+    gnss_receiver_get_info("MODE", buf);
+    MTFS30_TIPS("GNSS工作模式: %s", buf);
+    
+    /* 打印时间信息 */
+    gnss_receiver_get_info("TIME", buf);
+    MTFS30_TIPS("时间信息: %s", buf);    
+    
+    /* 打印定位信息 */
+    gnss_receiver_get_info("LOC", buf);
+    MTFS30_TIPS("定位信息: %s", buf);
+    
+    /* 打印卫星信息 */
+    gnss_receiver_get_info("SAT", buf);
+    MTFS30_TIPS("卫星信息: %s", buf);
+    
+    /* 打印闰秒信息 */
+    gnss_receiver_get_info("LEAP", buf);
+    MTFS30_TIPS("闰秒信息: %s", buf);
+    
+    /* 打印1PPS状态信息 */
+    gnss_receiver_get_info("PPS", buf);
+    MTFS30_TIPS("1PPS状态信息: %s", buf);
+    
+    /* 打印天线状态信息 */
+    gnss_receiver_get_info("ANT", buf);
+    MTFS30_TIPS("天线状态信息: %s", buf);
+    
+    /* 打印GNSS版本信息 */
+    gnss_receiver_get_info("VER", buf);
+    MTFS30_TIPS("GNSS版本信息: %s", buf);
+
+    MTFS30_TIPS("\n");
+}
+
+
+/*****************************************************************************
+ * 函  数:    gnss_init                                                           
+ * 功  能:    GNSS模块初始化                                                                  
+ * 输  入:    无                          
+ * 输  出:    无                                                    
+ * 返回值:    无                                                    
+ * 创  建:    2018-07-18 changzehai(DTT)                            
+ * 更  新:    无                                       
+ ****************************************************************************/ 
+void gnss_init(void)
+{
+    /* GNSS接收机初始化 */
+    gnss_receiver_init();
+}
+
+
+
+/*****************************************************************************
+ * 函  数:    gnss_acmode_set_handler                                                           
+ * 功  能:    配置接收机工作模式                                                                
+ * 输  入:    p_param  : 命令参数                      
+ * 输  出:    无                                                    
+ * 返回值:    OK: 设置成功； NG:设置失败                                                   
+ * 创  建:    2018-07-18 changzehai(DTT)                            
+ * 更  新:    无                   
+ ****************************************************************************/  
+u8_t gnss_acmode_set_handler(u8_t *p_param, u8_t *p_rtrv)
+{
+    return gnss_receiver_acmode_set(p_param);
+}
+
+/*****************************************************************************
+ * 函  数:    gnss_serial baud_set_handler                                                           
+ * 功  能:    配置卫星串口波特率                                                                
+ * 输  入:    p_param  : 命令参数
+ *            presult: 设置结果标志(成功|失败)                         
+ * 输  出:    无                                                    
+ * 返回值:    OK: 设置成功; NG: 设置失败                                                
+ * 创  建:    2018-07-18 changzehai(DTT)                            
+ * 更  新:    无                   
+ ****************************************************************************/
+u8_t gnss_serial_baud_set_handler(u8_t *p_param, u8_t *p_rtrv)
+{
+    return gnss_receiver_serial_baud_set(p_param);
+}
+
+/*****************************************************************************
+ * 函  数:    gnss_echo_set_handler                                                           
+ * 功  能:    打开/关闭指定语句的回显功能                                                                
+ * 输  入:    p_param  : 命令参数                 
+ * 输  出:    无                                                    
+ * 返回值:    OK: 设置成功; NG: 设置失败                                                    
+ * 创  建:    2018-07-18 changzehai(DTT)                            
+ * 更  新:    无                   
+ ****************************************************************************/
+u8_t gnss_echo_set_handler(u8_t *p_param, u8_t *p_rtrv)
+{  
+    return gnss_receiver_echo_set(p_param);
+}
+
+
+/*****************************************************************************
+ * 函  数:    gnss_stmt_set_handler                                                           
+ * 功  能:    打开/关闭GNSS板卡输出指定语句                                                               
+ * 输  入:    p_param  : 命令参数
+ * 输  出:    无                                                    
+ * 返回值:    OK: 设置成功; NG: 设置失败                                                    
+ * 创  建:    2018-07-18 changzehai(DTT)                            
+ * 更  新:    无                   
+ ****************************************************************************/
+u8_t gnss_stmt_set_handler(u8_t *p_param, u8_t *p_rtrv)
+{
+    return gnss_receiver_stmt_set(p_param);
+}
+
+
+
+/*****************************************************************************
+ * 函  数:    gnss_get_handler                                                           
+ * 功  能:    查询GNSS模块指定信息                                                               
+ * 输  入:    p_param : 命令参数           
+ * 输  出:    p_rtrv: 查询结果                                           
+ * 返回值:    OK: 查询成功; NG: 查询失败                                                    
+ * 创  建:    2018-07-18 changzehai(DTT)                            
+ * 更  新:    无                   
+ ****************************************************************************/
+u8_t gnss_get_info_handler(u8_t *p_param, u8_t *p_rtrv)
+{
+    return gnss_receiver_get_info(p_param, p_rtrv);
+}
+
+
+/*****************************************************************************
+ * 函  数:    gnss_set_gps_pps_offset                                                     
+ * 功  能:    设置输入gps信号的延时补偿                                                             
+ * 输  入:    offset: 延时补偿                     
+ * 输  出:    无                                                    
+ * 返回值:    无                                                    
+ * 创  建:    2018-07-18 changzehai(DTT)                            
+ * 更  新:    无                                       
+ ****************************************************************************/
+void gnss_set_gps_pps_offset(u32_t offset)
+{   
+     u8_t tmp = 0;
+     
+     tmp = (offset & 0x0F000000) >> 24;
+     SPI_FPGA_ByteRead(&tmp, GNSS_GPS_PPS_OFFSET_REG_ADDR0);
+     
+     tmp = (offset & 0xFF0000) >> 16;
+     SPI_FPGA_ByteRead(&tmp, GNSS_GPS_PPS_OFFSET_REG_ADDR1); 
+     
+     
+     tmp = (offset & 0xFF00) >> 8;
+     SPI_FPGA_ByteRead(&tmp, GNSS_GPS_PPS_OFFSET_REG_ADDR2);
+     
+     
+     tmp = offset & 0xFF;
+     SPI_FPGA_ByteRead(&tmp, GNSS_GPS_PPS_OFFSET_REG_ADDR3);     
+        
+}

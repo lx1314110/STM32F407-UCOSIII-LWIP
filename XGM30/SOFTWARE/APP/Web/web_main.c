@@ -50,6 +50,8 @@ static void Web_Thread(void *arg)
   // CGI_HANDLE and SSI_HANDLE .
   //
   ConfigWebInit();
+  
+  
   while(1)
   {
     if(!EthInitStatus)
