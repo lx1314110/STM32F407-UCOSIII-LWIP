@@ -9,14 +9,38 @@
 #define __OUT_PTP_H_
 #include "arch/cc.h"
 
-
-
 /*-------------------------------*/
 /* 宏定义                        */
 /*-------------------------------*/
 
 
 /* 寄存器地址定义 */
+#define PTP_VLANEN_REG_ADDR                    0x0100
+#define PTP_VLANPRI_REG_ADDR                   0x0101
+#define PTP_VLANCFI_REG_ADDR                   0x0102
+#define PTP_VLANVID_REG1_ADDR                  0x0103
+#define PTP_VLANVID_REG2_ADDR                  0x0104
+
+#define PTP_MAC_REG1_ADDR                      0x0105
+#define PTP_MAC_REG2_ADDR                      0x0106
+#define PTP_MAC_REG3_ADDR                      0x0107
+#define PTP_MAC_REG4_ADDR                      0x0108
+#define PTP_MAC_REG5_ADDR                      0x0109
+#define PTP_MAC_REG6_ADDR                      0x0110
+#define PTP_IP_REG1_ADDR                       0x0111
+#define PTP_IP_REG2_ADDR                       0x0112
+#define PTP_IP_REG3_ADDR                       0x0113
+#define PTP_IP_REG4_ADDR                       0x0114
+#define PTP_MASK_REG1_ADDR                     0x0115
+#define PTP_MASK_REG2_ADDR                     0x0116
+#define PTP_MASK_REG3_ADDR                     0x0117
+#define PTP_MASK_REG4_ADDR                     0x0118
+#define PTP_GATEWAY_REG1_ADDR                  0x0119
+#define PTP_GATEWAY_REG2_ADDR                  0x0120
+#define PTP_GATEWAY_REG3_ADDR                  0x0121
+#define PTP_GATEWAY_REG4_ADDR                  0x0122
+
+#define PTP_PORTEN_REG_ADDR                    0x0123
 #define PTP_DOMAIN_REG_ADDR                    0x0124    /* DOMAIN设置寄存器地址                   */
 #define PTP_FLAG_SECU_REG_ADDR                 0x0125    /* PTP security设置寄存器地址             */
 #define PTP_FLAG_PS2_REG_ADDR                  0x0126    /* PTP profile Specific 2设置寄存器地址   */
@@ -46,28 +70,14 @@
 #define PTP_ANNOUNCE_REG_ADDR                  0x0150    /* announce报文发包间隔置寄存器地址       */
 #define PTP_SYNC_REG_ADDR                      0x0151    /* sync报文发包间隔设置寄存器地址         */
 #define PTP_ESMC_REG_ADDR                      0x0152    /* ESMC报文使能/不使能设置寄存器地址      */
-#define PTP_SSM_REG_ADDR                       0x0153    /* SSM值设置寄存器地址                    */
+#define PTP_SSM_REG_ADDR                       0x0153    /* SSM值设置寄存器地址  */
+#define PTP_NTPEN_REG_ADDR                     0x0154    /* SSM值设置寄存器地址  */
+#define PTP_MTC_START_ADDR                     0x00020000
 
-
-
-
-
-
-
-
-
-
-
- 
 
 #define PTP_FLAG_GM_PRIO_REG_ADDR 0X0127
 //#define PTP_FLAG_CUO_HIGH_REG_ADDR 0x0127 
 //#define PTP_FLAG_CUO_LOW_REG_ADDR 0x0127
-
-
-
-
-
 
 //#define PTP_FLAG_GMCQ_HIGH1_REG_ADDR 0x0127
 //#define PTP_FLAG_GMCQ_HIGH2_REG_ADDR 0x0127
@@ -85,10 +95,10 @@
 #define PTP_MAC4_REG_ADDR 0X0109
 #define PTP_MAC5_REG_ADDR 0X0110
 
-#define PTP_IP0_REG_ADDR 0X0105
-#define PTP_IP1_REG_ADDR 0X0106
-#define PTP_IP2_REG_ADDR 0X0107
-#define PTP_IP3_REG_ADDR 0X0108
+#define PTP_IP0_REG_ADDR  0X0105
+#define PTP_IP1_REG_ADDR  0X0106
+#define PTP_IP2_REG_ADDR  0X0107
+#define PTP_IP3_REG_ADDR  0X0108
 
 #define PTP_MASK0_REG_ADDR 0X0105
 #define PTP_MASK1_REG_ADDR 0X0106
@@ -100,62 +110,34 @@
 #define PTP_GATEWAY2_REG_ADDR 0X0107
 #define PTP_GATEWAY3_REG_ADDR 0X0108
 
-#define PTP_VLANENABLE_REG_ADDR 0x0100
-#define PTP_VLANPROI_REG_ADDR 0x0100
-#define PTP_VLANCFI_REG_ADDR 0x0100
-#define PTP_VLANID_HIGH_REG_ADDR 0x0100
-#define PTP_VLANID_LOW_REG_ADDR 0x0100
+//#define PTP_VLANENABLE_REG_ADDR   0x0100
+//#define PTP_VLANPROI_REG_ADDR     0x0100
+//#define PTP_VLANCFI_REG_ADDR      0x0100
+//#define PTP_VLANID_HIGH_REG_ADDR  0x0100
+//#define PTP_VLANID_LOW_REG_ADDR   0x0100
 
-/* PTP结构定义 */
-typedef struct _PTP_T_
-{
-    u8_t  domain;                       /* DOMAIN                  */
-    u16_t flag_secu:1;                  /* PTP security            */
-    u16_t flag_ps2:1;                   /* PTP profile Specific 2  */
-    u16_t flag_ps1:1;                   /* PTP profile Specific 1  */ 
-    u16_t flag_alt_master:1;            /* alternateMasterFlag     */
-    u16_t flag_freq_trac:1;             /* frequencyTraceable      */
-    u16_t flag_time_trac:1;             /* timeTraceable           */
-    u16_t flag_time_scale:1;            /* ptpTimescale            */
-    u16_t flag_cur_utc_offset_valid:1;  /* currentUtcOffsetValid   */
-    u16_t flag_leap59:1;                /* leap59                  */
-    u16_t flag_leap61:1;                /* leap61                  */
-    u16_t unimul:1;                     /* 单播多播类型            */
-    u16_t layer:1;                      /* 封装方式                */
-    u16_t step:1;                       /* 时戳发送模式            */
-    u16_t delay:1;                      /* 时延类型                */
-    u16_t emsc:1;                       /* EMSC使能                */
-    u16_t :1;                           /*                         */
-    u16_t utc_offset;                   /* currentUtcOffset        */
-    u8_t  gm_prio1;                     /* grandmasterPriority1    */
-    u32_t gm_clk_qual;                  /* grandmasterClockQuality */
-    u8_t  gm_prio2;                     /* grandmasterPriority2    */    
-    u16_t steps_rm;                     /* stepsRemoved            */
-    u8_t  time_source;                  /* timeSource              */
-    u8_t  announce;                     /* announce报文发包间隔    */
-    u8_t  sync;                         /* sync报文发包间隔        */
-    u8_t  ssm;                          /* ssm                     */
-
-} ptp_t;
+/*ptp command line */
+#define MAC_STR_LIMIT_LEN       12
+#define MAC_DIG_FIX_LEN         6
+#define MAX_IPADDR_LEN          15
+#define IP_DIG_FIX_NUM          4
+//#define PTP2_PORT_SUBCOM_NUM    12
+#define PTP_MESSAGE_FRE_NUM     15
+#define PTP_MESSAGE_FRE_OFFSET  8
+#define PTP_MESSAGE_MIN_FRE     -8
+#define PTP_MESSAGE_MAX_FRE     6
+#define PTP_BYTE_MAX_VALUE      255
+#define PTP_BYTE_MIN_VALUE      0
+#define PTP_SLAVE_IP_TB_LEN     1024
+#define PTP_QULITY_SPLIT_NUM      2
+#define PTP_PRIORITY_SPLIT_NUM    1
 
 
-/* 用户命令处理器结构定义 */
-typedef struct  _PTP_PARSER_T_
-{
-    u8_t  (*cmd_fun)(u8_t *p_param, ptp_t *p_ptp);
-} ptp_parser_t;
-
-
-
-
-
-
-
-
-/*-------------------------------*/
-/* 函数声明                      */
-/*-------------------------------*/
-extern u8_t ptp_set_handler(u8_t *p_msg, u8_t *p_rtrv);
-extern u8_t ptp_set(ptp_t *p_ptp);
-
+/**********************************
+* function define                      
+***********************************/
+u8_t ptp_set_handler(int num,...);
+u8_t ptp_ipconfig_handler(int num,...);
+u8_t ptp_ifconfig_handler(int num,...);
+extern unsigned char StringtoInt( char* s );
 #endif

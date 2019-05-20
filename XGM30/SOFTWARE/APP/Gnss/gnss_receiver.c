@@ -45,7 +45,7 @@ void gnss_receiver_init(void)
 {
 
  
-    BSP_Sleep(10000); /* 等待卫星模块启动 */  
+    BSP_Sleep(10000);// 10000/* 等待卫星模块启动 */  
     
 	memset(&g_rev_info, 0x00, sizeof(gnss_recviver_info_t));
    
@@ -124,26 +124,8 @@ void gnss_receiver_msg_parser(u8_t *pdata)
 u8_t gnss_receiver_acmode_set(u8_t *p_mode)
 {
     u8_t i = 0; 
-//    u8_t j = 0;
-//    u8_t len = 0;           /* 保存的消息长度       */
-//    u8_t param_len = 0;     /* 保存每个参数的长度   */
-//    u8_t buf[20]= {0};      /* 临时存放消息         */
-//    u8_t param_buf[20]= {0};/* 保存每个参数         */
     u8_t acmode = 0;        
     u8_t const *p_mode_tbl[5] = {"MIX", "GPS", "BDS", "GLO", "GAL"}; /* MODE参数表 */
-
-
-//    len  = strlen((char const *)p_mode);
-//    if (len > strlen("GPS|BDS|GLO|GAL"))
-//    {
-//        MTFS30_TIPS("参数(%s)过长，最长为\"GPS|BDS|GLO|GAL;(16字节)\"", p_mode);
-//        return NG;
-//    }
-//    
-//    strncpy((char *)buf, (char const *)p_mode, len);
-//    buf[len] = '|';
-//    buf[len + 1] = '\0';
-   
     
     /* 在MODE参数表中查找 */
     for (i = 0; i < 5; i++)
@@ -162,8 +144,8 @@ u8_t gnss_receiver_acmode_set(u8_t *p_mode)
         return NG;     
     }
       
-   
-    
+   g_sParameters.GnssParameters.mode = i + 1;
+   MTFS30_TIPS("gnss work mode %s", p_mode_tbl[i]); 
 	/* 判断接收机类型 */	 
 	switch(g_rev_info.rec_type)
 	{

@@ -190,7 +190,7 @@ u8_t fpga_read_cmd_handler(int num,...)
           for (i = 0; i < read_size; i++)
           {
               
-              MTFS30_TIPS("第%d个字节: %#x", i+1, p_param[2]);
+              MTFS30_TIPS("第%d个字节: %#x", i+1, *(p_param[2]+i));
           }
           
       } 

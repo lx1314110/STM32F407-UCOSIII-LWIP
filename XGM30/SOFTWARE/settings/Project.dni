@@ -9,7 +9,7 @@ TriggerName=main
 LimitSize=0
 ByteLimit=50
 [DebugChecksum]
-Checksum=-1506512914
+Checksum=-1522074631
 [Exceptions]
 StopOnUncaught=_ 0
 StopOnThrow=_ 0
@@ -104,6 +104,10 @@ Probe0=I0
 ProbeSetup0=2 1 1 2 0 0
 [watch_formats]
 Fmt0={W}0:address	4	0
+[Disassemble mode]
+mode=0
+[Breakpoints2]
+Count=0
 [Log file]
 LoggingEnabled=_ 0
 LogFile=_ ""
@@ -111,6 +115,12 @@ Category=_ 0
 [TermIOLog]
 LoggingEnabled=_ 0
 LogFile=_ ""
+[Aliases]
+A0=_ "C:\Users\changzehai\Desktop\EPMA14-320151210\EPMA14-320151210\EPMA14-3\uCOS-III-and-LwIP1.4.0-to-STM32\uCOSIII-LwIP-Port-STM32F2XX\SOFTWARE\APP\src\app.c" ""
+A1=_ "C:\Users\changzehai\Desktop\EPMA14-320151210\EPMA14-320151210\EPMA14-3\uCOS-III-and-LwIP1.4.0-to-STM32\uCOSIII-LwIP-Port-STM32F2XX\SOFTWARE\uC-CPU\cpu_core.c" ""
+A2=_ "D:\EPMA14-320180629\EPMA14-320151210\EPMA14-320151210\EPMA14-3\uCOS-III-and-LwIP1.4.0-to-STM32\uCOSIII-LwIP-Port-STM32F2XX\SOFTWARE\APP\src\app.c" ""
+Count=3
+SuppressDialog=1
 [CallStackLog]
 Enabled=0
 [DriverProfiling]
@@ -119,14 +129,3 @@ Mode=0
 Graph=0
 Symbiont=0
 Exclusions=
-[Disassemble mode]
-mode=0
-[Breakpoints2]
-Bp0=_ 1 "EMUL_CODE" "{$PROJ_DIR$\APP\Debug\user_cmd.c}.67.5" 0 0 1 "" 0 "" 0
-Count=1
-[Aliases]
-A0=_ "C:\Users\changzehai\Desktop\EPMA14-320151210\EPMA14-320151210\EPMA14-3\uCOS-III-and-LwIP1.4.0-to-STM32\uCOSIII-LwIP-Port-STM32F2XX\SOFTWARE\APP\src\app.c" ""
-A1=_ "C:\Users\changzehai\Desktop\EPMA14-320151210\EPMA14-320151210\EPMA14-3\uCOS-III-and-LwIP1.4.0-to-STM32\uCOSIII-LwIP-Port-STM32F2XX\SOFTWARE\uC-CPU\cpu_core.c" ""
-A2=_ "D:\EPMA14-320180629\EPMA14-320151210\EPMA14-320151210\EPMA14-3\uCOS-III-and-LwIP1.4.0-to-STM32\uCOSIII-LwIP-Port-STM32F2XX\SOFTWARE\APP\src\app.c" ""
-Count=3
-SuppressDialog=1

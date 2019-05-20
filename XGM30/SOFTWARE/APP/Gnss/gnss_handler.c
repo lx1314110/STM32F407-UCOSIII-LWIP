@@ -16,7 +16,7 @@
 
 
 /*******************************************************************************
-/* extern varible define                      
+* extern varible define                      
 *******************************************************************************/
 extern gnss_leap_t             g_leap;                /* 闰秒               */
 extern gnss_info_t             g_gnss_info;           /* GNSS信息           */
@@ -32,10 +32,10 @@ extern u8_t                    g_gnss_cmd_send_flag;      /*  卫星命令发送标志 *
 "Control and monitor the gnss module\n"\
 "Usage:gnss <command>\r\n"                                                                  \
 "Command:\r\n"                                                                              \
-"  gnss (m)"\
-"        (m) config the work mode of satellite receiver,[[MIX]|[GPS]|[BDS]|[GLO]|[GAL]]\r\n" \
-"  gnss (m) inquiry about the working mode of satellite receiver\r\n"                       \
+"  gnss (m) inquiry about the working mode of satellite receiver\r\n"\
+"         (m) config the work mode of satellite receiver,[[MIX]|[GPS]|[BDS]|[GLO]|[GAL]]\r\n" \
 "         (p) [priority] in order is the priority of gps,bd,glonass,galileo\r\n"     \
+"         (e) [enable|disable]\r\n" \
 "       (t) inquiry about the utc time of statellite receiver hhmmss.xx,day,month,year\r\n" \
 "       (l) inquiry about the locate information of statellite receiver, hhmmss.xx,day,month,year\r\n"\
 "         (s):Query the number of satellite positioning stars\r\n"                          \
@@ -47,7 +47,14 @@ extern u8_t                    g_gnss_cmd_send_flag;      /*  卫星命令发送标志 *
 "       (a) antenna status\r\n"                                                             \
 "       (v) the firm version of satellite receiver\r\n"                                     \
 "       (o) the leap value of gps\r\n"                                                      \
-"         (p) leap second forecasting hhmmss,day,month,year,next leap,now leap,leap mark\r\n"
+"         (p) leap second forecasting hhmmss,day,month,year,next leap,now leap,leap mark\r\n"\
+"       (g) inquiry about the satellite information\r\n"\
+"         (g) Query about the gps satellite information\r\n"\
+"         (b) Query about the bds satellite information\r\n"\
+"         (l) Query about the glonass satellite information\r\n"\
+"         (a) Query about the galileo satellite information\r\n"\
+"       (d) inquiry the compensation of delay information\r\n"\
+"         (c) [compensation] the compensation of delay information,range -1000000 ~ 1000000ns\r\n"  
 };
 
 const char *gnss_mode[5] = {"MIX", "GPS", "BD", "GLO", "GAL"};
@@ -234,8 +241,11 @@ u8_t gnss_acmode_set_handler(int num,...)
     p_param = (u8_t *)va_arg(valist, char *);
     
     if(p_param != NULL)
-      err_flag = gnss_receiver_acmode_set(p_param);
+        err_flag = gnss_receiver_acmode_set(p_param);
     
+    else
+        err_flag = NG;
+
     va_end(valist);
     
     return err_flag;
@@ -266,7 +276,6 @@ u8_t gnss_serial_baud_set_handler(int num,...)
     va_end(valist);
     
     return err_flag;
-    //return gnss_receiver_serial_baud_set(p_param);
 }
 
 u8_t gnss_helper(int num,...)
@@ -300,6 +309,7 @@ u8_t gnss_helper(int num,...)
 u8_t gnss_command_execute(int num,...)
 {
     u8_t *p_param[MAX_PARAM_NUM] = NULL;
+    u8_t tmp_buf[GNSS_STATELLITE_INFO_LEN];
     u8_t  err_flag = OK;
     u8_t  inx;
     
@@ -316,43 +326,303 @@ u8_t gnss_command_execute(int num,...)
     
     if(err_flag == OK)
     {
+      
+       if(0 == strncmp((char const*)p_param[0], "help", strlen("help")))
+       {
+          DEBUG_USART_Send((u8_t *)gnss_help, strlen(gnss_help));
+          goto return_mark; 
+       }
        if(num <= GNSS_COMMAND_RTRV)
        {
           switch(*p_param[0])
           {
                case 'm':
-                 {
+               {
                      if(*p_param[1] == 'm')
                      { 
-                       inx = g_sParameters.GnssParameters.mode;
-                       sprintf(p_param[num -1], "%s", gnss_mode[inx-1]); 
-                       MTFS30_TIPS("gnss work mode:%s\n", p_param[num -1]);
+                         inx = g_sParameters.GnssParameters.mode;
+                         sprintf((char *)p_param[num -1], "%s\r\n", gnss_mode[inx-1]); 
                      }
                      else if(*p_param[1] == 'p')
+                          sprintf((char *)p_param[num -1], "%s\r\n", g_sParameters.GnssParameters.priority); 
+
+                     else if(*p_param[1] == 'e')
+                          sprintf((char *)p_param[num -1], "%d\r\n", g_sParameters.GnssParameters.enable); 
+                     
+                     else
+                          err_flag = NG;
+               }
+               break;
+               
+               case 't':
+               {
+                    if(num == GNSS_COMMAND_RTRV -1)
+                    {
+                         memset(tmp_buf, '\0', GNSS_STATELLITE_INFO_LEN);
+                         get_gnss_info("TIME", '\0', ";", tmp_buf);
+                         sprintf((char *)p_param[num -1], "%s\r\n", tmp_buf);
+                    }
+                    else
+                         err_flag = NG;  
+               }
+               break;
+               
+               case 'l':
+                 {
+                     memset(tmp_buf, '\0', GNSS_STATELLITE_INFO_LEN);
+                     if(num == GNSS_COMMAND_RTRV -1)
                      {
-                       sprintf(p_param[num -1], "%s", g_sParameters.GnssParameters.priority); 
-                       MTFS30_TIPS("gnss work mode priority:%s\n", p_param[num -1]);
+                         gnss_receiver_get_info("LOC", tmp_buf);
+                         sprintf((char *)p_param[num -1], "%s\r\n", tmp_buf);
                      }
                      else
-                       MTFS30_TIPS("参数(%s)有误!\n", p_param);
-                     break;
+                     {
+                         switch(*p_param[1])
+                         {
+                             case 's':
+                               {
+                                 get_gnss_info("LOC", '\0', ",", tmp_buf);
+                                 sprintf((char *)p_param[num -1], "%s\r\n", tmp_buf);
+                               }
+                             break;
+                             
+                             case 't':
+                               { 
+                                 get_gnss_info("TIME", '\0', ";", tmp_buf);
+                                 sprintf((char *)p_param[num -1], "%s\r\n", tmp_buf);
+                                 
+                               }
+                             break;
+                             
+                             case 'i':
+                               {
+                                 split_gnss_info("LOC", ',', ',', 2, 4, tmp_buf);
+                                 sprintf((char *)p_param[num -1], "%s\r\n", tmp_buf);
+                               }
+                              break;
+                              
+                             case 'o':
+                               {
+                                 split_gnss_info("LOC", ',', ',', 4, 6, tmp_buf);
+                                 sprintf((char *)p_param[num -1], "%s\r\n", tmp_buf);
+                               }
+                             break;
+                             
+                             case 'a':
+                               {
+                                 get_gnss_info("LOC", ',', ";", tmp_buf);
+                                 sprintf((char *)p_param[num -1], "%s\r\n", tmp_buf); 
+                               }
+                             break;
+                             
+                             default:
+                               {
+                                  err_flag = NG;
+                               }
+                             break;
+                        }
+                         
+                     }
                  }
-               case 't':
+                 break;
+                 
+                case 'p':
                  {
-                     sprintf(p_param[num -1], "%s", g_sParameters.GnssParameters.priority); 
-                     MTFS30_TIPS("gnss work mode priority:%s\n", p_param[num -1]);
-                     
-                     break;
+                   if(num == GNSS_COMMAND_RTRV -1)
+                   {
+                         memset(tmp_buf, '\0', GNSS_STATELLITE_INFO_LEN);
+                         get_gnss_info("PPS", '\0', ";", tmp_buf);
+                         sprintf((char *)p_param[num -1], "%s\r\n", tmp_buf);
+                   }
+                   else
+                         err_flag = NG; 
                  }
+                break;
+               
+                case 'a':
+                 {
+                   if(num == GNSS_COMMAND_RTRV -1)
+                   {
+                         memset(tmp_buf, '\0', GNSS_STATELLITE_INFO_LEN);
+                         get_gnss_info("ANT", '\0', ";", tmp_buf);
+                         sprintf((char *)p_param[num -1], "%s\r\n", tmp_buf);
+                   }
+                   else 
+                     err_flag = NG;
+                 }
+                break;
+                
+                case 'v':
+                 {
+                   if(num == GNSS_COMMAND_RTRV -1)
+                   {
+                         memset(tmp_buf, '\0', GNSS_STATELLITE_INFO_LEN);
+                         get_gnss_info("VER", '\0', ";", tmp_buf);
+                         sprintf((char *)p_param[num -1], "%s\r\n", tmp_buf);
+                   }
+                   else 
+                     err_flag = NG;
+                 }
+                break;
+                
+                case 'o':
+                 {
+                   memset(tmp_buf, '\0', GNSS_STATELLITE_INFO_LEN);
+                   if(num == GNSS_COMMAND_RTRV -1)
+                   {
+                         split_gnss_info("LEAP", ',', ',', 5, 6, tmp_buf);
+                         sprintf((char *)p_param[num -1], "%s\r\n", tmp_buf);
+                   }
+                   else if(*p_param[1] == 'p')
+                   {
+                          gnss_receiver_get_info("LEAP", tmp_buf);
+                          sprintf((char *)p_param[num -1], "%s\r\n", tmp_buf);
+                   }
+                   else
+                          err_flag = NG;
+                 }
+                break;
+                
+                case 'g':
+                 {
+                   memset(tmp_buf, '\0', GNSS_STATELLITE_INFO_LEN);
+                   if(num == GNSS_COMMAND_RTRV -1)
+                   {
+                         gnss_receiver_get_info("SAT", tmp_buf);
+                         sprintf((char *)p_param[num -1], "%s\r\n", tmp_buf);
+                   }
+                   else if(*p_param[1] == 'g')
+                   {
+                          split1_gnss_info("SAT", "GPS", ';',tmp_buf);
+                          sprintf((char *)p_param[num -1], "%s\r\n", tmp_buf);
+                   }
+                   else if(*p_param[1] == 'b')
+                   {
+                          split1_gnss_info("SAT", "BDS", ';',tmp_buf);
+                          sprintf((char *)p_param[num -1], "%s\r\n", tmp_buf);
+                   }
+                   else if(*p_param[1] == 'l')
+                   {
+                          split1_gnss_info("SAT", "GLO", ';',tmp_buf);
+                          sprintf((char *)p_param[num -1], "%s\r\n", tmp_buf);
+                   }
+                   else if(*p_param[1] == 'a')
+                   {
+                          split1_gnss_info("SAT", "GAL", ';',tmp_buf);
+                          sprintf((char *)p_param[num -1], "%s\r\n", tmp_buf);
+                   }
+                   else
+                          err_flag = NG;
+                 }
+                  break;
+                 
+               case 'd':
+                 {
+                   int dlycom = 0;
+                   if(num == GNSS_COMMAND_RTRV -1 || 
+                                                *p_param[1] == 'c')
+                   {
+                         dlycom = gnss_get_gps_pps_offset();
+                         sprintf((char *)p_param[num -1], "%d\r\n", dlycom);
+                   }
+                   else
+                         err_flag = NG;
+                 }
+                  break;
+               
+               default:
+                    err_flag = NG;
+                   
+                  break;
+                
        }
     }
+    else if(num == GNSS_COMMAND_SET)
+    {
+        switch(*p_param[0])
+        {
+          case 'm':
+          {
+            if(*p_param[1] == 'm')
+            {
+                   if(p_param[2] != NULL)
+                      err_flag = gnss_acmode_set_handler(1, p_param[2]);
+                   else
+                   {
+                      err_flag = NG;
+                      MTFS30_ERROR("p_param[2] is null!");
+                   }
+            }
+            else if(*p_param[1] == 'p')
+            {
+                    if(p_param[2] != NULL && strlen((char const *)p_param[2]) == GNSS_PRIORITY_LEN)
+                    {
+                       sprintf((char *)g_sParameters.GnssParameters.priority,"%s",(char *)p_param[2]);
+                       g_sParameters.GnssParameters.priority[GNSS_PRIORITY_LEN] = '\0';
+                    }
+                    else
+                    {
+                       err_flag = NG;
+                       MTFS30_ERROR("p_param[2] is null!");
+                    }
+                    
+            }
+            else if(*p_param[1] == 'e')
+            {
+              if(p_param[2] != NULL)
+              { 
+                  if(0 == strncmp((char *)p_param[2], "enable", strlen("enable")))
+                     g_sParameters.GnssParameters.enable = 1;
+                  
+                  else if(0 == strncmp((char *)p_param[2], "disable", strlen("disable")))
+                     g_sParameters.GnssParameters.enable = 0;
+                  
+                  else
+                     err_flag = NG;
+              }
+              else
+              {
+                   err_flag = NG;
+                   MTFS30_TIPS("参数(%s)有误!\n", p_param[2]);
+              }
+            }
+            else 
+            {
+                  err_flag = NG;
+                  MTFS30_ERROR("p_param[2] is null!");
+            }
+            
+          }
+          break;
+          
+          case 'd':
+          {
+            int delaycom = 0;
+            if(*p_param[1] == 'c')
+            {
+              if(p_param[2] != NULL)
+              {
+                  delaycom = atoi((char *)p_param[2]);
+                  err_flag = gnss_set_gps_pps_offset(delaycom);
+              }
+              else
+              {
+                   MTFS30_ERROR("p_param[2] is null!");
+                  err_flag = NG;
+              }
+            }
+            else
+                err_flag = NG;
+          }
+          break; 
+        default:
+          err_flag = NG;
+          break;
+        }
+    }
   }
-//    if(0== strncmp((char const*)p_param[0], "m", strlen("help")))
-//    {
-//      //strncpy(p_param[1], gnss_help, strlen(gnss_help) );
-//      DEBUG_USART_Send((u8_t *)gnss_help, strlen(gnss_help));
-//    }
-    
+
+return_mark:   
     return err_flag;
     //return gnss_receiver_serial_baud_set(p_param);
 }
@@ -416,7 +686,7 @@ u8_t gnss_stmt_set_handler(int num,...)
     va_list valist;
     
     va_start(valist, num);
-    p_param = va_arg(valist, char *);
+    p_param = (u8_t *)va_arg(valist, char *);
     
     if(p_param != NULL)
       err_flag = gnss_receiver_stmt_set(p_param);
@@ -462,22 +732,97 @@ u8_t gnss_inquery_set(u8_t *p_param, u8_t *p_rtrv)
  * 创  建:    2018-07-18 changzehai(DTT)                            
  * 更  新:    无                                       
  ****************************************************************************/
-void gnss_set_gps_pps_offset(u32_t offset)
+u8_t gnss_set_gps_pps_offset(int offset)
 {   
      u8_t tmp = 0;
+     int value = 0;
      
-     tmp = (offset & 0x0F000000) >> 24;
-     SPI_FPGA_ByteRead(&tmp, GNSS_GPS_PPS_OFFSET_REG_ADDR0);
+     if(offset > GNSS_PPS_DLYCOM_HI || offset < GNSS_PPS_DLYCOM_LO)
+              return NG;
      
-     tmp = (offset & 0xFF0000) >> 16;
-     SPI_FPGA_ByteRead(&tmp, GNSS_GPS_PPS_OFFSET_REG_ADDR1); 
-     
-     
-     tmp = (offset & 0xFF00) >> 8;
-     SPI_FPGA_ByteRead(&tmp, GNSS_GPS_PPS_OFFSET_REG_ADDR2);
+     g_sParameters.GnssParameters.delaycom = offset;
+     value = abs(offset) /8;
+     if(offset < 0) 
+       value |= 0x08000000;
      
      
-     tmp = offset & 0xFF;
-     SPI_FPGA_ByteRead(&tmp, GNSS_GPS_PPS_OFFSET_REG_ADDR3);     
+     tmp = (value & 0x0F000000) >> 24;
+     SPI_FPGA_ByteWrite(tmp, GNSS_GPS_PPS_OFFSET_REG_ADDR0);
+     
+     tmp = (value & 0xFF0000) >> 16;
+     SPI_FPGA_ByteWrite(tmp, GNSS_GPS_PPS_OFFSET_REG_ADDR1); 
+     
+     
+     tmp = (value & 0xFF00) >> 8;
+     SPI_FPGA_ByteWrite(tmp, GNSS_GPS_PPS_OFFSET_REG_ADDR2);
+     
+     tmp = value & 0xFF;
+     SPI_FPGA_ByteWrite(tmp, GNSS_GPS_PPS_OFFSET_REG_ADDR3); 
+      
+     return OK;
         
+}
+
+int gnss_get_gps_pps_offset(void)
+{   
+     u8_t tmp = 0;
+     u8_t ret_sign = 0;
+     int  ret_value = 0;
+     
+     
+     SPI_FPGA_ByteRead(&tmp, GNSS_GPS_PPS_OFFSET_REG_ADDR0);
+     ret_sign = (tmp & 0x08)? 1 : 0;
+     ret_value |= tmp & 0x07;
+     
+     //tmp = (offset & 0xFF0000) >> 16;
+     SPI_FPGA_ByteRead(&tmp, GNSS_GPS_PPS_OFFSET_REG_ADDR1); 
+     ret_value <<= 24;
+     ret_value |= tmp & 0xff;
+     //tmp = (offset & 0xFF00) >> 8;
+     SPI_FPGA_ByteRead(&tmp, GNSS_GPS_PPS_OFFSET_REG_ADDR2);
+     ret_value <<= 16;
+     ret_value |= tmp & 0xff;
+     //tmp = offset & 0xFF;
+     SPI_FPGA_ByteRead(&tmp, GNSS_GPS_PPS_OFFSET_REG_ADDR3);     
+     ret_value |= tmp & 0xff;
+     
+     ret_value = ret_sign? (-ret_value * 8):(ret_value * 8);
+     return ret_value;
+}
+
+/*check pps status and pps loss alarm. serial alarm */
+void check_gnss_available(void)
+{
+  u8_t tmp = 0;
+  static u8_t avail_count = 0;
+  static u8_t unavail_count = 0;
+  u8_t alarm_tmp = GNSS_PPS_LOSS_BIT | GNSS_SER_LOSS_BIT;
+  
+  /* check gnss enable status,60 seconds filter*/
+  if(g_sParameters.GnssParameters.enable == 1 &&
+                            OK == SPI_FPGA_ByteRead(&tmp, GNSS_ALARM_REG_ADDR) &&
+                    (tmp & alarm_tmp) == 0x00 && g_gnss_info.pps.info[0] == '3' )
+   {
+          unavail_count = 0;
+       
+          if(avail_count < GNSS_PPS_AVAIL_FITER)
+             avail_count++;
+          else
+          {
+            SPI_FPGA_ByteWrite(available, GNSS_PPS_AVAIL_REG_ADDR);
+            LVL_DEBUG("gnss available!\n",DBG_NOTICE);
+          }
+ 
+   }
+  else
+  {
+          avail_count = 0;
+          if(unavail_count < GNSS_PPS_AVAIL_FITER)
+            unavail_count++;
+          else
+          {
+            SPI_FPGA_ByteWrite(unavailable, GNSS_PPS_AVAIL_REG_ADDR);
+            LVL_DEBUG("gnss unavailable!\n",DBG_NOTICE);
+          }
+  }
 }

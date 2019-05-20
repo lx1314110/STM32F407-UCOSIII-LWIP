@@ -203,8 +203,7 @@ static u8_t ut4b0_checkcode_compare(u8_t *pmsg, u8_t *pcode, u8_t check_type)
         break;
     
     default:
-			MTFS30_ERROR("校验方式(%d)有误\n", check_type);
-	        
+	MTFS30_ERROR("校验方式(%d)有误\n", check_type);   
         break;
     }
 
@@ -701,7 +700,6 @@ LEAP:
 //            MTFS30_DEBUG("新的闰秒生效的周计数： %d\n新的闰秒生效的周内日计数： %d\n当前闰秒： %d\n新的闰秒： %d\n", 
 //                         wn, dn, now_leap,next_leap);
 
-       
 	if (strncmp((char *)pdata, "GPSUTC", 6) == 0)   /* GPS卫星 */
 	{
         
@@ -1139,10 +1137,6 @@ static void ut4b0_cmd_reply_msg_parser(u8_t *pdata)
     p = (u8_t *)strtok(NULL, "*");
     p_reply_result = p + 10; 
  
-
-    
-    
-
     /* 回复信息中包含的命令与发送命令一致，且回复结果为OK */
     if ((0 == strncmp((char *)&g_save_cmd.buf[g_save_cmd.index[cmd_cnt]], (char *)p_reply_cmd, strlen((const char *)p_reply_cmd))) &&
         (0 == strcmp("OK", (char *)p_reply_result)))
@@ -1496,11 +1490,6 @@ static u8_t ut4b0_receiver_configuration(u8_t *p_cmd)
 static void ut4b0_receiver_cmd_save(u8_t *p_cmd)
 {
     u8_t *p = p_cmd;
-
-    
-    
-    
-
     g_save_cmd.num = 0;
     strcpy((char *)g_save_cmd.buf, (const char *)p_cmd); /* 保存命令*/
 

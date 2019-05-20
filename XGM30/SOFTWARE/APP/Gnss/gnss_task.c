@@ -88,7 +88,10 @@ static void gnss_task(void *pdata)
    u8_t *pmsg = NULL;
    OS_ERR err;
    OS_MSG_SIZE size;
-	
+  //
+  //!gnss initialize configure.
+  //
+    gnss_init();
    //pdata = pdata;
     
 	while(1)
@@ -126,68 +129,6 @@ static void gnss_task(void *pdata)
 
 }
 
-//static void gnss_task(void *pdata)
-//{
-//
-//    u16_t read_size = 0;                        /* 从缓形冲区读出的数据大小        */
-//    u16_t can_read_size = 0;                    /* 环形缓冲区可读的数据大小        */
-//    u8_t read_buf[RINGBUFFER_READ_MAX_SIZE + 1];/* 存放从环形缓冲区读出的数据      */  
-//	
-//    
-//    pdata = pdata;
-//    
-//    /*-------------------------------------*/
-//    /* 解析卫星信息                        */
-//    /*-------------------------------------*/
-//	while(1)
-//	{
-// 
-//         
-//        can_read_size = util_ringbuffer_can_read(&g_gnss_usart_rb);
-//        if (can_read_size == 0)
-//        {
-//            /* 如果用户发送了卫星模块命令，为了立即接收卫星模块的回复信息,减少睡眠时间 */
-//            if (g_gnss_cmd_send_flag == 1)
-//            {
-//                BSP_Sleep(10);
-//                continue;
-//            } 
-//            
-//            BSP_Sleep(100);
-//            continue;
-//        }
-//
-//
-//        /* 等待10ms，防止数据还没写完 */
-//        BSP_Sleep(10);
-//       
-//        /*  
-//         * 取出每条数据(每条GNSS语句以"\n"结束)
-//         */        
-//        while((read_size = util_ringbuffer_end_ch_read(&g_gnss_usart_rb, read_buf, RINGBUFFER_READ_MAX_SIZE, '\n')) > 0)
-//        {
-//            
-//            read_buf[read_size] = '\0';
-//            MTFS30_DEBUG("数据长度 = %d, 数据: %s", read_size, read_buf);
-//
-//            /* 解析卫星信息 */           
-//            gnss_receiver_msg_parser(read_buf);
-//
-//        }
-//        
-//        /* 如果用户发送了卫星模块命令，为了立即接收卫星模块的回复信息,跳过睡眠 */
-//        if (g_gnss_cmd_send_flag == 1)
-//        {
-//            continue;
-//        } 
-//
-//        BSP_Sleep(1000);
-//        
-//	}    
-//    
-//
-//
-//}
 
 
 

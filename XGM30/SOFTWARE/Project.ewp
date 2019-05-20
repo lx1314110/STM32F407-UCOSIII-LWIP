@@ -1930,6 +1930,18 @@
       </file>
     </group>
     <group>
+      <name>output_module</name>
+      <file>
+        <name>$PROJ_DIR$\APP\Output\out_ntp.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\APP\Output\out_pps_tod.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\APP\Output\out_ptp.c</name>
+      </file>
+    </group>
+    <group>
       <name>system_module</name>
       <file>
         <name>$PROJ_DIR$\APP\System\led_interrupt.c</name>
@@ -1939,18 +1951,6 @@
       </file>
       <file>
         <name>$PROJ_DIR$\APP\System\watchdog_task.c</name>
-      </file>
-    </group>
-    <group>
-      <name>output_module</name>
-      <file>
-        <name>$PROJ_DIR$\APP\output\out_ntp.c</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$\APP\output\out_pps_tod.c</name>
-      </file>
-      <file>
-        <name>$PROJ_DIR$\APP\Output\out_ptp.c</name>
       </file>
     </group>
     <group>
@@ -2846,7 +2846,7 @@
     </group>
   </group>
   <file>
-    <name>$PROJ_DIR$\..\&#x4Fee;&#x6539;&#x8BB0;&#x5F55;.txt</name>
+    <name>$PROJ_DIR$\..\Readme.txt</name>
   </file>
 </project>
 

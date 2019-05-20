@@ -708,19 +708,37 @@ static const tConfigParameters g_sParametersFactory =
     {
       1,        //    port,
     "link down",//    port status,
-      1,        //    enalbe,
-      1,        //    esmc enable,
-      0,        //    delay type, 
-      0,        //    unicast,
-      1,        //    encode package,
-      0,        //    step,
       8,        //    sync frequecy,
       8,       //    anounce frequecy,
       24,       //    domain, 
       0,        //    protocol,
       0,        //    delay compensation,
       128,      //    priority1, 
-      128       //    priority2
+      128,       //    priority2
+      1,        //    enalbe,
+      1,        //    esmc enable,
+      0,        //    delay type, 
+      0,        //    unicast,
+      1,        //    encode package,
+      0,        //    step,
+      0,        /* PTP security,default false*/
+      0,        /* PTP profile Specific 2,default false  */
+      0,        /* PTP profile Specific 1,default false  */
+      0,        /* alternateMasterFlag ,default false    */
+      0,        /* frequencyTraceable      */
+      0,        /* timeTraceable           */
+      1,        /* ptpTimescale,default true*/
+      1,        /* currentUtcOffsetValid,default true   */
+      0,        /* leap59                  */
+      0,        /* leap61                  */
+      0,        /* stepsRemoved            */
+      0,        /* grandmasterClockQuality */
+      0,        /* timeSource              */
+      0,        /* ssm                     */
+      {0,0,0},  /*clock quality: class accuracy variance */
+      37,        /*ntp enable*/ 
+      0,
+      0
     },
     
     /*out parameters*/
@@ -3557,12 +3575,12 @@ static const char* Opther_CGIHandler( int iIndex, int iNumParams, char* pcParam[
 //
 //! get gnss info .
 //
-static void get_gnss_info(unsigned char *type, char startch, unsigned char *endstr, unsigned char *tmp)
+void get_gnss_info(unsigned char *type, char startch, unsigned char *endstr, unsigned char *tmp)
 {   
     char *p = NULL;
     char *p1 = NULL;
     char ok_flag = 0;
-    unsigned char len = 0;
+    //unsigned char len = 0;
     unsigned char buf[GNSS_STATELLITE_INFO_LEN];
   
     
@@ -3574,7 +3592,7 @@ static void get_gnss_info(unsigned char *type, char startch, unsigned char *ends
     MTFS30_DEBUG("gnss type,%s:%s!\r\n",type,buf);
    
     if(endstr != NULL)
-        p = strstr(buf, endstr);
+        p = strstr((char const*)buf, (char const*)endstr);
     
     MTFS30_DEBUG("findstr gnss type,%s:%s!\r\n",type,p);
       
@@ -3595,7 +3613,7 @@ static void get_gnss_info(unsigned char *type, char startch, unsigned char *ends
         
         if(ok_flag)  
         {
-          strncpy(tmp, p1+1, p - p1 -1);
+          strncpy((char*)tmp, p1+1, p - p1 -1);
           tmp[p-p1] = '\0';
         }
         else
@@ -3607,7 +3625,7 @@ static void get_gnss_info(unsigned char *type, char startch, unsigned char *ends
         {
            
            *p = '\0';
-           strncpy(tmp, buf, strlen(buf));
+           strncpy((char*)tmp, buf, strlen(buf));
         }
         else
            memset(tmp, '\0', sizeof(tmp));
@@ -3617,7 +3635,7 @@ static void get_gnss_info(unsigned char *type, char startch, unsigned char *ends
 //
 //! split gnss info1 .
 //
-static void split_gnss_info(unsigned char *type, char startch, char endch,unsigned char split_num,
+void split_gnss_info(unsigned char *type, char startch, char endch,unsigned char split_num,
                             unsigned char end_num, unsigned char *tmp)
 {   
     char *p = NULL;
@@ -3667,7 +3685,7 @@ static void split_gnss_info(unsigned char *type, char startch, char endch,unsign
 //
 //! split gnss info1 .
 //
-static void split1_gnss_info(unsigned char *type, char* startstr, char endch,
+void split1_gnss_info(unsigned char *type, char* startstr, char endch,
                              unsigned char *tmp)
 {   
     char *p = NULL;
@@ -3682,14 +3700,22 @@ static void split1_gnss_info(unsigned char *type, char* startstr, char endch,
     
     if((startstr != NULL) && (endch != '\0'))
     {
-       len =  strlen(buf);
+       len =  strlen((char *)buf);
        p =  strstr(buf, startstr);
        p1 = p;
        
        while(p1++)
        {
          if(p1 == &buf[len-1])
-           break;
+         {
+           if(*p1 == endch)
+           {
+             ok_flag = 1;
+             break;
+           }
+           else
+              break;
+         }
          
          if(*p1 == endch)
          {
@@ -4578,7 +4604,7 @@ ConfigSSIHandler( int iIndex, char* pcInsert, int iInsertLen )
         {   
             memset(tmp_buf, '\0', GNSS_STATELLITE_INFO_LEN);
             split1_gnss_info("SAT", "GPS", ';',tmp_buf);
-            iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='gps' style='width:152' disabled='true' value='" );
+            iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='gps' style='width:900' disabled='true' value='" );
             if( iCount < iInsertLen )
             {
 
@@ -4605,7 +4631,7 @@ ConfigSSIHandler( int iIndex, char* pcInsert, int iInsertLen )
         {   
             memset(tmp_buf, '\0', GNSS_STATELLITE_INFO_LEN);
             split1_gnss_info("SAT", "BDS", ';', tmp_buf);
-            iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='bds' style='width:152' disabled='true' value='" );
+            iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='bds' style='width:900' disabled='true' value='" );
             if( iCount < iInsertLen )
             {
 
@@ -4631,7 +4657,7 @@ ConfigSSIHandler( int iIndex, char* pcInsert, int iInsertLen )
         {   
             memset(tmp_buf, '\0', GNSS_STATELLITE_INFO_LEN);
             split1_gnss_info("SAT", "GLO", ';', tmp_buf);
-            iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='glo' style='width:152' disabled='true' value='" );
+            iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='glo' style='width:900' disabled='true' value='" );
             if( iCount < iInsertLen )
             {
 
@@ -4658,7 +4684,7 @@ ConfigSSIHandler( int iIndex, char* pcInsert, int iInsertLen )
         {   
             memset(tmp_buf, '\0', GNSS_STATELLITE_INFO_LEN);
             split1_gnss_info("SAT", "GAL", ';', tmp_buf);
-            iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='gal' style='width:152' disabled='true' value='" );
+            iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='gal' style='width:900' disabled='true' value='" );
             if( iCount < iInsertLen )
             {
 

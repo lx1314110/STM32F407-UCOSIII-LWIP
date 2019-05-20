@@ -73,19 +73,19 @@
 /*-------------------------------*/
 /* º¯ÊýÉùÃ÷                      */
 /*-------------------------------*/
-extern void gnss_receiver_msg_parser(u8_t *pdata);
-extern void gnss_receiver_init(void);
-extern void gnss_receiver_data_clear(void);
-extern u8_t gnss_receiver_acmode_set(u8_t *pmode);
-extern u8_t gnss_receiver_echo_set(u8_t *pparam);
-extern u8_t gnss_receiver_debug_set(u8_t *p_param);
-extern u8_t gnss_receiver_stmt_set(u8_t *p_param);
-extern void gnss_receiver_msg_set(u8_t ac_mode);
-extern void gnss_receiver_reset(u8_t reset_mode);
-extern u8_t gnss_receiver_serial_baud_set(u8_t *pbaud);
-extern u8_t gnss_receiver_get_info(u8_t *p_param, u8_t *p_rtrv);
-extern void gnss_receiver_get_sat_info(u8_t *p_rtrv);
-extern u8_t gnss_receiver_check_primary_mode();
-extern void gnss_receiver_info_clear(void);
+void gnss_receiver_msg_parser(u8_t *pdata);
+void gnss_receiver_init(void);
+void gnss_receiver_data_clear(void);
+u8_t gnss_receiver_acmode_set(u8_t *pmode);
+u8_t gnss_receiver_echo_set(u8_t *pparam);
+u8_t gnss_receiver_debug_set(u8_t *p_param);
+u8_t gnss_receiver_stmt_set(u8_t *p_param);
+void gnss_receiver_msg_set(u8_t ac_mode);
+void gnss_receiver_reset(u8_t reset_mode);
+u8_t gnss_receiver_serial_baud_set(u8_t *pbaud);
+u8_t gnss_receiver_get_info(u8_t *p_param, u8_t *p_rtrv);
+void gnss_receiver_get_sat_info(u8_t *p_rtrv);
+u8_t gnss_receiver_check_primary_mode();
+void gnss_receiver_info_clear(void);
 
 #endif

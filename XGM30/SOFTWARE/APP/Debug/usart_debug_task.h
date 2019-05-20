@@ -14,7 +14,7 @@
 /*-------------------------------*/
 /* 宏定义                        */
 /*-------------------------------*/
-#define    USART_DEBUG_TASK_STACK_SIZE   300  /* 调试任务栈大小 */
+#define    USART_DEBUG_TASK_STACK_SIZE   512  /* 调试任务栈大小 */
 #define    USART_DEBUG_THREAD_PRIO       7   /* 调试任务优先级 */
 
 

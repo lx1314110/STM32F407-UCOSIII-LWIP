@@ -14,9 +14,11 @@
 #include "Roll/roll_print.h"
 
 /* 闰秒预告测试 */
-#include "Util/util_ringbuffer.h"
+//#include "Util/util_ringbuffer.h"
 #include "BSP/inc/bsp_usart.h"
-extern ringbuffer_t g_gnss_usart_rb;           /* 卫星消息缓冲区     */
+
+#include "Gnss/gnss_handler.h"
+//extern ringbuffer_t g_gnss_usart_rb;           /* 卫星消息缓冲区     */
 
 
 /*-------------------------------*/
@@ -97,6 +99,8 @@ static void roll_task(void *pdata)
         {
             roll_print_info();
         }
+        
+        check_gnss_available();
         
         /* 循环打印栈信息 */
         //roll_print_task_info();

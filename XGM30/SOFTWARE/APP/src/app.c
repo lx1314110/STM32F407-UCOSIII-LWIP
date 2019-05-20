@@ -226,7 +226,7 @@ static  void  AppTaskStart (void *p_arg)
   //
   //!gnss initialize configure.
   //
-    gnss_init();
+  //  gnss_init();
   
   
   //

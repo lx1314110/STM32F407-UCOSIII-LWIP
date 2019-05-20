@@ -74,6 +74,7 @@ typedef unsigned char tBoolean;
 //! written back to flash for use on the next power cycle.
 //
 //*****************************************************************************
+#pragma pack(2)
 typedef struct
 {
     //
@@ -98,6 +99,7 @@ typedef struct
 
 }
 tGNSSParameters;
+
 //*****************************************************************************
 //
 //! This structure contains the ptp module net parameters that are saved to flash.
@@ -106,6 +108,7 @@ tGNSSParameters;
 //! written back to flash for use on the next power cycle.
 //
 //*****************************************************************************
+
 typedef struct
 {
     //
@@ -158,6 +161,7 @@ tPtpNetParameters;
 //! written back to flash for use on the next power cycle.
 //
 //*****************************************************************************
+
 typedef struct
 {
     //
@@ -170,35 +174,7 @@ typedef struct
     //
     unsigned char status[12];    //13
 
-    //
-    //! The enable for the ptp module.
-    // 
-    unsigned char port_enable;   //14
-
-    //
-    //! The esmc enable for the ptp module.
-    //
-    unsigned char  esmc_enable;  //15
     
-    //
-    //! The delay type for the ptp module.
-    //
-    unsigned char delay_type;    //16
-    
-    //
-    //! The unicast for the ptp module.
-    //
-    unsigned char unicast;       //17
-    
-    //
-    //! The encode package for the ptp module.
-    //
-    unsigned char encode_package;//18
-    
-    //
-    //! The step for ptp modules.
-    //
-    unsigned char step_type;     //19
     
     //
     //! The sync frequency for ptp modules.
@@ -237,8 +213,73 @@ typedef struct
     //
     unsigned char priority2;         //28
     
+    unsigned short  port_enable:1;                /* The esmc enable for the ptp module.*/
+    unsigned short  esmc_enable:1;                /* The esmc enable for the ptp module.*/
+    unsigned short delay_type:1;                  /*The delay type for the ptp module*/
+    unsigned short unicast:1;                     /* The unicast for the ptp module*/
+    unsigned short encode_package:1;              /* The encode package for the ptp module*/
+    unsigned short step_type:1;                   /* The step for ptp modules*/
+    
+    unsigned short flag_secu:1;                  /* PTP security,default false*/
+    unsigned short flag_ps2:1;                   /* PTP profile Specific 2,default false  */
+    unsigned short flag_ps1:1;                   /* PTP profile Specific 1,default false  */ 
+    unsigned short flag_alt_master:1;            /* alternateMasterFlag ,default false    */
+    unsigned short flag_freq_trac:1;             /* frequencyTraceable      */
+    unsigned short flag_time_trac:1;             /* timeTraceable           */
+    unsigned short flag_time_scale:1;            /* ptpTimescale,default true*/
+    unsigned short flag_cur_utc_offset_valid:1;  /* currentUtcOffsetValid,default true   */
+    unsigned short flag_leap59:1;                /* leap59                  */
+    unsigned short flag_leap61:1;                /* leap61                  */
+    unsigned short steps_rm;                     /* stepsRemoved            */
+    unsigned int   gm_clk_qual;                  /* grandmasterClockQuality */
+    unsigned char  time_source;                  /* timeSource              */
+    unsigned char  esmc_ssm;                     /* ssm                     */
+    unsigned char  clock_class[3];               /*<active> <holdover> <free> class value*/
+    unsigned short utc_offset;
+    unsigned char  ntp_en:1;
+    unsigned char reserved:7;
 }
 tPtpModeParameters;
+
+
+//*****************************************************************************
+//
+//! This structure contains the ptp module mtc ip arp table that are saved to flash.
+//! A copy exists in RAM for use during the execution of the application, which
+//! is loaded from flash at startup.  The modified parameter block can also be
+//! written back to flash for use on the next power cycle.
+//
+//*****************************************************************************
+
+typedef struct
+{
+  
+   //
+    //! The ip arp table,reserved.
+    //
+    unsigned short arp_reseved:13;      //13
+    
+    //
+    //! The ip arp table,arp time ount counter.
+    //
+    unsigned short arp_time_out:2;      //2
+    //
+    //! ptp ip arp table,arp flag.
+    //
+    unsigned short arp_flag:1;           //1
+   
+    
+    //
+    //! the ip arp table,mac address.
+    //
+    unsigned char arp_mac[6];
+    
+    //
+    //! the ip arp table,ip address.
+    //
+    unsigned char arp_ip[4];    
+}
+tPtpSlaveArpTable;
 //*****************************************************************************
 //
 //! This structure contains the ptp module mode parameters that are saved to flash.
@@ -291,6 +332,8 @@ typedef struct
      
 }
 tOutParameters;
+
+#pragma pack()
 //*****************************************************************************
 //
 //! This structure contains the S2E module parameters that are saved to flash.

@@ -33,6 +33,15 @@ typedef struct  _USER_CMDHANDLE_T_
 
 #define GNSS_COMMAND_RTRV      3
 #define GNSS_COMMAND_SET       4
+#define GNSS_PRIORITY_LEN      4
+
+#define PNET_COMMAND_RTRV      2
+#define PNET_COMMAND_SET       3
+
+#define PTP2_COMMAND_RTRV      3
+#define PTP2_COMMAND_SET       4
+#define PTP2_COMMAND_SUB_SET   5
+
 
 
 /*-------------------------------*/
