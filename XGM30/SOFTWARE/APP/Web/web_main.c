@@ -24,7 +24,6 @@ extern tBoolean bReset;
 //! phy init status
 extern u32_t EthInitStatus;
 
-
 //
 //! ip change delya cnt.
 //

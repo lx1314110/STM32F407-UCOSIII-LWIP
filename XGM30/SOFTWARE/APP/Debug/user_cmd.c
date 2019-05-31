@@ -11,10 +11,8 @@
 #include "Fpga/fpga_handler.h"
 #include "Roll/roll_print.h"
 #include "Output/out_ptp.h"
+#include "Output/out_pps_tod.h"
 #include "Debug/mtfs30_debug.h"
-
-
-
 
 
 /*******************************************************************************
@@ -36,7 +34,7 @@ static user_cmdhandle_t user_cmdhandle[] =
     {USER_CMD_GET, (u8_t *)"ipconfig",        ptp_ipconfig_handler},            /* ptp ipconfig execute      */
     {USER_CMD_GET, (u8_t *)"ifconfig",        ptp_ifconfig_handler},            /* ptp ifconfig vlan execute      */    
     {USER_CMD_GET, (u8_t *)"ptp2",            ptp_set_handler},                 /* ptp mode execute      */
-
+    {USER_CMD_GET, (u8_t *)"out",             out_pps_handler}                  /* out mode execute      */
 };
 
 
@@ -56,8 +54,10 @@ void user_cmd_parser(u8_t *p_cmd)
     u8_t *p_head = NULL;   /* 命令头           */
     u8_t *p_param[MAX_PARAM_NUM] = {NULL}; /* command1         */
     u8_t  tmp_buffer[RTRV_BUF_MAX_SIZE] = {0}; 
+    u8_t *pBuff = NULL;
  //   u8_t *p_param2 = NULL; /* command2         */
     u8_t p_param_num = 0;
+    
     u8_t inx = 0;
     u8_t len = 0;
 
@@ -75,10 +75,6 @@ void user_cmd_parser(u8_t *p_cmd)
     }
     
     /* 检查长度 */
-    if(strstr((char const *)p_cmd,"\r\n") || strstr((char const *)p_cmd,"\r") 
-                                         || strstr((char const *)p_cmd,"\n"))
-    p_cmd = (u8_t *)strtok((char *)p_cmd, "\r\n"); /* 去掉后面的\r\n */
-    
     len = strlen((const char *)p_cmd);
     MTFS30_DEBUG("########cmd len = %d", len);
     if (len > USER_CMD_MAX_LEN)
@@ -87,13 +83,27 @@ void user_cmd_parser(u8_t *p_cmd)
         return ;
     }
     
+    memset(tmp_buffer, '\0', RTRV_BUF_MAX_SIZE);
+    strncpy((char *)tmp_buffer, (char const *)p_cmd ,len);
+    tmp_buffer[len] = '\0';
+    
+    /*loss the tail space char*/
+    if(tmp_buffer[len -1] == ' ')
+    {
+       tmp_buffer[len -1] = '\0';
+       len = len -1;
+    }
+    if(strstr((char const *)tmp_buffer,"\r\n") || strstr((char const *)tmp_buffer,"\r") 
+                                         || strstr((char const *)tmp_buffer,"\n"))
+    pBuff = (u8_t *)strtok((char *)tmp_buffer, "\r\n"); /* 去掉后面的\r\n */
+    
     /* 取出命令头和命令参数 */
     for(inx = 0; inx < len; inx++)
     {
-      if(*(p_cmd+inx) == '\0')
+      if(*(pBuff+inx) == '\0')
         break;
       
-      if(*(p_cmd+inx) == ' ')
+      if(*(pBuff+inx) == ' ')
         p_param_num++;
     }
     
@@ -104,11 +114,12 @@ void user_cmd_parser(u8_t *p_cmd)
     }  
     else
         MTFS30_DEBUG("########param num = %d", p_param_num);
+    
     //
     //!command echo
     //
     MTFS30_TIPS("%s", p_cmd);
-    p_head = (u8_t *)strtok((char *)p_cmd, " ");
+    p_head = (u8_t *)strtok((char *)pBuff, " ");
     
     for(inx = 0; inx < p_param_num; inx++)
     {
@@ -160,7 +171,7 @@ void user_cmd_parser(u8_t *p_cmd)
 //    else /* 查询命令 */ 
 //    {
 
-        
+        tmp_buffer[0] = '\0';
         p_param[p_param_num] = tmp_buffer;
         if (OK == user_cmdhandle[i].cmd_fun(p_param_num + 1, p_param[0], p_param[1], p_param[2],
                                             p_param[3], p_param[4], p_param[5]))  /* 查询成功 */

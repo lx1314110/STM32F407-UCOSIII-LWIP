@@ -285,3 +285,63 @@ static u8_t  ptp_esmcen_rtrv(u8_t *p_param);
 static u8_t  ptp_esmcssm_rtrv(u8_t *p_param);
 
 3. modify the ptp_set_handler and add ipconfig\ ifconfig\ptp2 command. 
+
+
+2019-5-31
+
+1.add out help in out_pps_tod.c
+const char *pps_help = {
+"Control and monitor the 1PPS+TOD or 1PPS or IRIGB module\n"\
+"Usage: <command>\r\n"\
+" out (b)\r\n"\
+"         (c)compensation <value>:change IRIGB compensation.\r\n" \
+"         (l)leap <value>:change IRIGB leap precaution, 00 ~ 11.\r\n" \
+"         (d)daylingt <value>:change IRIGB daylight precaution, 00 ~ 11.\r\n" \
+"         (z)zone <value>:change IRIGB time zone,utc+0 ~ utc+12 and utc-11 ~ utc-1.\r\n" \
+"         (q)quality <value>:change IRIGB quality zone.\r\n" \
+" out (p)\r\n"\
+"         (c)compensation <value>:change 1pps+tod compensation. \r\n"\
+"         (t)type <value>: Change tod info contain status message.\r\n"\
+"         (s)status <value>: Change pps status of tod message.\r\n"\
+"         (j)Jitter <value>: Change jitter magnitude of tod message. \r\n"\
+"         (k)clock <value>: Change clock type of tod message.\r\n"\
+"         (l)lock <value>: Change lock mode of tod message.\r\n"\
+"         (a)alarm <value>: Change clock source alarm.\r\n"\
+" out (s)\r\n"\
+"         (t)type <value>:change out signal type, gnss-pps|sys-pps|dc-irigb|2mhz|10mhz. \r\n"
+};
+
+2.add irigb and pps tod set fuctions
+
+static u8_t out_set_irigb_dlycom(u8_t *p_param, tConfigParameters *p_sParameters);
+static u8_t out_set_irigb_leapPreflag(u8_t *p_param, tConfigParameters *p_sParameters);
+static u8_t out_set_irigb_daylight(u8_t *p_param, tConfigParameters *p_sParameters);
+static u8_t out_set_irigb_timeskew(u8_t *p_param, tConfigParameters *p_sParameters);
+static u8_t out_set_irigb_clockquality(u8_t *p_param, tConfigParameters *p_sParameters);
+static u8_t out_set_ppstod_dlycom(u8_t *p_param, tConfigParameters *p_sParameters);
+static u8_t out_set_tod_type(u8_t *p_param, tConfigParameters *p_sParameters);
+static u8_t out_set_pps_status(u8_t *p_param, tConfigParameters *p_sParameters);
+static u8_t out_set_tod_jitter(u8_t *p_param, tConfigParameters *p_sParameters);
+static u8_t out_set_clock_type(u8_t *p_param, tConfigParameters *p_sParameters);
+static u8_t out_set_clock_status(u8_t *p_param, tConfigParameters *p_sParameters);
+static u8_t out_set_monitor_alarm(u8_t *p_param, tConfigParameters *p_sParameters);
+static u8_t out_set_singal_type(u8_t *p_param, tConfigParameters *p_sParameters);
+
+static u8_t out_irigb_dlycom_rtrv(u8_t *p_param);
+static u8_t out_irigb_leapPreflag_rtrv(u8_t *p_param);
+static u8_t out_irigb_daylight_rtrv(u8_t *p_param);
+static u8_t out_irigb_timeskew_rtrv(u8_t *p_param);
+static u8_t out_irigb_clockquality_rtrv(u8_t *p_param);
+static u8_t out_ppstod_dlycom_rtrv(u8_t *p_param);
+static u8_t out_pps_status_rtrv(u8_t *p_param);
+static u8_t out_tod_type_rtrv(u8_t *p_param);
+static u8_t out_tod_jitter_rtrv(u8_t *p_param);
+static u8_t out_clock_type_rtrv(u8_t *p_param);
+static u8_t out_clock_status_rtrv(u8_t *p_param);
+static u8_t out_monitor_alarm_rtrv(u8_t *p_param);
+static u8_t out_singal_type_rtrv(u8_t *p_param);
+
+3.add u8_t out_pps_handler(int num,...),description as the pps tod and irigb tod. 
+
+
+

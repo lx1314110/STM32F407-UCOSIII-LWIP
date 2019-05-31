@@ -747,17 +747,32 @@ u8_t gnss_set_gps_pps_offset(int offset)
      
      
      tmp = (value & 0x0F000000) >> 24;
-     SPI_FPGA_ByteWrite(tmp, GNSS_GPS_PPS_OFFSET_REG_ADDR0);
+     if (NG ==SPI_FPGA_ByteWrite(tmp, GNSS_GPS_PPS_OFFSET_REG_ADDR0))
+     {
+         MTFS30_ERROR("spi write_address:%#x,value:%#x", GNSS_GPS_PPS_OFFSET_REG_ADDR0, tmp);
+         return NG;
+     }
      
      tmp = (value & 0xFF0000) >> 16;
-     SPI_FPGA_ByteWrite(tmp, GNSS_GPS_PPS_OFFSET_REG_ADDR1); 
-     
-     
+     if (NG ==SPI_FPGA_ByteWrite(tmp, GNSS_GPS_PPS_OFFSET_REG_ADDR1))
+     {
+         MTFS30_ERROR("spi write_address:%#x,value:%#x", GNSS_GPS_PPS_OFFSET_REG_ADDR1, tmp);
+         return NG;
+     } 
+  
      tmp = (value & 0xFF00) >> 8;
-     SPI_FPGA_ByteWrite(tmp, GNSS_GPS_PPS_OFFSET_REG_ADDR2);
+     if (NG ==SPI_FPGA_ByteWrite(tmp, GNSS_GPS_PPS_OFFSET_REG_ADDR2))
+     {
+         MTFS30_ERROR("spi write_address:%#x,value:%#x", GNSS_GPS_PPS_OFFSET_REG_ADDR2, tmp);
+         return NG;
+     } 
      
      tmp = value & 0xFF;
-     SPI_FPGA_ByteWrite(tmp, GNSS_GPS_PPS_OFFSET_REG_ADDR3); 
+     if (NG ==SPI_FPGA_ByteWrite(tmp, GNSS_GPS_PPS_OFFSET_REG_ADDR3))
+     {
+         MTFS30_ERROR("spi write_address:%#x,value:%#x", GNSS_GPS_PPS_OFFSET_REG_ADDR3, tmp);
+         return NG;
+     }  
       
      return OK;
         
@@ -774,19 +789,33 @@ int gnss_get_gps_pps_offset(void)
      ret_sign = (tmp & 0x08)? 1 : 0;
      ret_value |= tmp & 0x07;
      
-     //tmp = (offset & 0xFF0000) >> 16;
-     SPI_FPGA_ByteRead(&tmp, GNSS_GPS_PPS_OFFSET_REG_ADDR1); 
-     ret_value <<= 24;
+     
+     if(NG == SPI_FPGA_ByteRead(&tmp, GNSS_GPS_PPS_OFFSET_REG_ADDR1))
+     {
+          MTFS30_ERROR("spi read_address:%#x,value:%#x", GNSS_GPS_PPS_OFFSET_REG_ADDR1, tmp);
+          return NG;
+     }
+     ret_value <<= 8;
      ret_value |= tmp & 0xff;
-     //tmp = (offset & 0xFF00) >> 8;
-     SPI_FPGA_ByteRead(&tmp, GNSS_GPS_PPS_OFFSET_REG_ADDR2);
-     ret_value <<= 16;
+     
+     if(NG == SPI_FPGA_ByteRead(&tmp, GNSS_GPS_PPS_OFFSET_REG_ADDR2))
+     {
+          MTFS30_ERROR("spi read_address:%#x,value:%#x", GNSS_GPS_PPS_OFFSET_REG_ADDR2, tmp);
+          return NG;
+     }
+     ret_value <<= 8;
      ret_value |= tmp & 0xff;
-     //tmp = offset & 0xFF;
-     SPI_FPGA_ByteRead(&tmp, GNSS_GPS_PPS_OFFSET_REG_ADDR3);     
+     
+     if(NG == SPI_FPGA_ByteRead(&tmp, GNSS_GPS_PPS_OFFSET_REG_ADDR3))
+     {
+          MTFS30_ERROR("spi read_address:%#x,value:%#x", GNSS_GPS_PPS_OFFSET_REG_ADDR3, tmp);
+          return NG;
+     }
+     ret_value <<= 8;
      ret_value |= tmp & 0xff;
      
      ret_value = ret_sign? (-ret_value * 8):(ret_value * 8);
+     g_sParameters.GnssParameters.delaycom = ret_value;
      return ret_value;
 }
 

@@ -41,6 +41,7 @@
 #define    GNSS_GSV_MSG_MAX_LEN        70  /* GSV信息最大长度 */
 
 #define    GNSS_MSG_MAX_LEN          2048 /* 卫星信息最大长度 */
+#define    COMM_MAX_LEN                32
 
      
 

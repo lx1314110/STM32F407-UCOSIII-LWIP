@@ -22,6 +22,11 @@ typedef struct  _PTP_PARSER_SET_
     u8_t  (*cmd_fun)(u8_t *p_param, tConfigParameters *p_sParameters);
 } ptp2_set_parse;
 
+
+const char *p_frequcy[PTP_MESSAGE_FRE_NUM] = {"1/256", "1/128", "1/64", "1/32", "1/16", "1/8", "1/4",
+                                              "1/2",   "1",     "2",    "4",    "8",    "16",  "32",
+                                              "64"};
+
 /*private function define*/
 static u8_t  ptp_mac_parser(u8_t *p_param, tConfigParameters *p_sParameters);
 static u8_t  ptp_ip_parser(u8_t *p_param, tConfigParameters *p_sParameters);
@@ -1162,7 +1167,12 @@ static u8_t  ptp_macaddr_rtrv(u8_t *p_param)
                   MTFS30_ERROR("spi read_address:%#x,value:%#x", PTP_MAC_REG6_ADDR, temp[5]);
                   return NG;
       }
-      
+      g_sParameters.PtpNetParameters.ptp_mac[0] = temp[0];
+      g_sParameters.PtpNetParameters.ptp_mac[1] = temp[1];
+      g_sParameters.PtpNetParameters.ptp_mac[2] = temp[2];
+      g_sParameters.PtpNetParameters.ptp_mac[3] = temp[3];
+      g_sParameters.PtpNetParameters.ptp_mac[4] = temp[4];
+      g_sParameters.PtpNetParameters.ptp_mac[5] = temp[5];
       sprintf((char *)p_param, "%02x-%02x-%02x-%02x-%02x-%02x\r\n", temp[0], temp[1], temp[2], temp[3], temp[4], temp[5]); 
       
       return OK;
@@ -1196,7 +1206,11 @@ static u8_t  ptp_ipaddr_rtrv(u8_t *p_param)
                   return NG;
           }
       }
+      
+      g_sParameters.PtpNetParameters.ptp_ipaddr = tmp[0] <<24 | tmp[1] << 16 | tmp[2] << 8 | tmp[3];
+      
       sprintf((char *)p_param, "%d.%d.%d.%d\r\n", tmp[0], tmp[1], tmp[2], tmp[3]);
+      
       return OK;
 }
 
@@ -1230,6 +1244,7 @@ static u8_t  ptp_maskaddr_rtrv(u8_t *p_param)
           }
       }
       
+      g_sParameters.PtpNetParameters.ptp_submask = tmp[0] <<24 | tmp[1] << 16 | tmp[2] << 8 | tmp[3];
       sprintf((char *)p_param, "%d.%d.%d.%d\r\n", tmp[0], tmp[1], tmp[2], tmp[3]);
       return OK;
 }
@@ -1268,7 +1283,7 @@ static u8_t  ptp_gateway_rtrv(u8_t *p_param)
                   return NG;
           }
       }
-      
+      g_sParameters.PtpNetParameters.ptp_gateway = tmp[0] <<24 | tmp[1] << 16 | tmp[2] << 8 | tmp[3];
       sprintf((char *)p_param, "%d.%d.%d.%d\r\n", tmp[0], tmp[1], tmp[2], tmp[3]); 
       return OK;
 }
@@ -1300,11 +1315,16 @@ static u8_t  ptp_vlanen_rtrv(u8_t *p_param)
       }
      
       if(tmp == 0)
+      {
           sprintf((char *)p_param, "%s\r\n","off");
+          g_sParameters.PtpNetParameters.vlan_enable = tmp;
+      }
       
       else if(tmp == 1)
+      {
           sprintf((char *)p_param, "%s\r\n","on");
-      
+          g_sParameters.PtpNetParameters.vlan_enable = tmp;
+      }
       else
       {
           sprintf((char *)p_param, "%s\r\n", "failure");
@@ -1312,7 +1332,7 @@ static u8_t  ptp_vlanen_rtrv(u8_t *p_param)
           return NG;
       }
          
-      
+       
       return OK;
 }
 
@@ -1341,6 +1361,7 @@ static u8_t  ptp_vlanpcp_rtrv(u8_t *p_param)
               return NG;
       }
      
+      g_sParameters.PtpNetParameters.vlan_pcp = tmp;
       sprintf((char *)p_param, "%d\r\n",tmp);
       return OK;
 }
@@ -1369,7 +1390,7 @@ static u8_t  ptp_vlancfi_rtrv(u8_t *p_param)
               MTFS30_ERROR("spi read_address:%#x,value:%#x", PTP_VLANCFI_REG_ADDR, tmp);
               return NG;
       }
-     
+      g_sParameters.PtpNetParameters.vlan_cfi = tmp;
       sprintf((char *)p_param, "%d\r\n",tmp);
       return OK;
 }
@@ -1409,8 +1430,7 @@ static u8_t  ptp_vlanvid_rtrv(u8_t *p_param)
       }
       
       temp |= tmp;
-      
-     
+      g_sParameters.PtpNetParameters.vlan_vid = temp;
       sprintf((char *)p_param, "%d\r\n",temp);
       return OK;
 }
@@ -1455,10 +1475,16 @@ static u8_t  ptp_protocol_rtrv(u8_t *p_param)
       
       /*read ptp protocol */
       if(tmp == 0)
+      {
           sprintf((char *)p_param, "%s\r\n", "eth");
+          g_sParameters.PtpModeParameters.encode_package = tmp;
+      }
       
       else if(tmp == 1)
+      {
           sprintf((char *)p_param, "%s\r\n", "udp");
+          g_sParameters.PtpModeParameters.encode_package = tmp;
+      }
       
       else
       {
@@ -1499,10 +1525,16 @@ static u8_t  ptp_mechanism_rtrv(u8_t *p_param)
       
       /*read ptp protocol */
       if(tmp == 0)
-          sprintf((char *)p_param, "%s\r\n", "e2e"); 
+      {
+          sprintf((char *)p_param, "%s\r\n", "e2e");
+          g_sParameters.PtpModeParameters.delay_type = tmp;
+      }
       
       else  if(tmp == 1)
+      {
           sprintf((char *)p_param, "%s\r\n", "p2p");
+          g_sParameters.PtpModeParameters.delay_type = tmp;
+      }
       
       else
       {
@@ -1516,9 +1548,7 @@ static u8_t  ptp_mechanism_rtrv(u8_t *p_param)
       return OK;
 }
 
-const char *p_frequcy[PTP_MESSAGE_FRE_NUM] = {"1/256", "1/128", "1/64", "1/32", "1/16", "1/8", "1/4",
-                                              "1/2",   "1",     "2",    "4",    "8",    "16",  "32",
-                                              "64"};
+
 
 /*******************************************************************************
 *fuction: u8_t  ptp_syncinter_rtrv(u8_t *p_param)
@@ -1551,6 +1581,8 @@ static u8_t  ptp_syncinter_rtrv(u8_t *p_param)
                   MTFS30_ERROR("ptp sync fre(%d) error!", tmp);
                   return NG;
       }
+      
+      g_sParameters.PtpModeParameters.sync_frequency = PTP_MESSAGE_FRE_OFFSET + tmp;
       /*read ptp sync frequency */
       sprintf((char *)p_param, "%s\r\n", p_frequcy[PTP_MESSAGE_FRE_OFFSET + tmp]); 
       
@@ -1642,6 +1674,8 @@ static u8_t  ptp_announceinter_rtrv(u8_t *p_param)
                   return NG;
       }
       
+      
+      g_sParameters.PtpModeParameters.anounce_frequency = PTP_MESSAGE_FRE_OFFSET + tmp;
       /*read ptp sync frequency */
       sprintf((char *)p_param, "%s\r\n", p_frequcy[PTP_MESSAGE_FRE_OFFSET + tmp]); 
       
@@ -1680,10 +1714,16 @@ static u8_t  ptp_unicast_rtrv(u8_t *p_param)
       }
       
       if(0 == tmp)    /*read ptp unicast enable/disable */
-          sprintf((char *)p_param, "%s\r\n", "disable"); 
+      {
+          sprintf((char *)p_param, "%s\r\n", "disable");
+          g_sParameters.PtpModeParameters.unicast = tmp;
+      }
       
       else if(1 == tmp)/*read ptp unicast enable/disable */
+      {
           sprintf((char *)p_param, "%s\r\n", "enable");
+          g_sParameters.PtpModeParameters.unicast = tmp;
+      }
       
       else
       {
@@ -1721,7 +1761,7 @@ static u8_t  ptp_domain_rtrv(u8_t *p_param)
           MTFS30_ERROR("spi error_address:%#x,value:%#x", PTP_DOMAIN_REG_ADDR, tmp);
           return NG;
       }
-      
+      g_sParameters.PtpModeParameters.domain = tmp;
       sprintf((char *)p_param, "%d\r\n", tmp);
      
       return OK;
@@ -1752,10 +1792,16 @@ static u8_t  ptp_fretraceable_rtrv(u8_t *p_param)
       }
       
       if(0 == tmp)
+      {
           sprintf((char *)p_param, "%s\r\n", "false");
+          g_sParameters.PtpModeParameters.flag_freq_trac = tmp;
+      }
       
       else if(1 == tmp)
+      {
           sprintf((char *)p_param, "%s\r\n", "true");
+          g_sParameters.PtpModeParameters.flag_freq_trac = tmp;
+      }
       
       else
       {           
@@ -1796,10 +1842,16 @@ static u8_t  ptp_timetraceable_rtrv(u8_t *p_param)
       
       /*int to string (true|false|failure)*/
       if(0 == tmp)
+      {
           sprintf((char *)p_param, "%s\r\n", "false");
+          g_sParameters.PtpModeParameters.flag_time_trac = tmp;
+      }
       
       else if(1 == tmp)
+      {
           sprintf((char *)p_param, "%s\r\n", "true");
+          g_sParameters.PtpModeParameters.flag_time_trac = tmp;
+      }
       
       else
       {
@@ -1835,7 +1887,7 @@ static u8_t  ptp_timesource_rtrv(u8_t *p_param)
           MTFS30_ERROR("spi read_address:%#x,value:%#x", PTP_TIME_SOURCE_REG_ADDR, tmp);
           return NG;
       }
-      
+      g_sParameters.PtpModeParameters.time_source = tmp;
       sprintf((char *)p_param, "%d\r\n", tmp);
     
       /*print string into serial*/
@@ -1870,10 +1922,15 @@ static u8_t  ptp_porten_rtrv(u8_t *p_param)
        
       /*int to string (true|false|failure)*/
       if(0 == tmp)
+      {
           sprintf((char *)p_param, "%s\r\n", "off");
-      
+          g_sParameters.PtpModeParameters.port_enable = tmp;
+      }
       else if(1 == tmp)
+      {
           sprintf((char *)p_param, "%s\r\n", "on");
+          g_sParameters.PtpModeParameters.port_enable = tmp;
+      }
       
       else
       {
@@ -1914,11 +1971,17 @@ static u8_t  ptp_ntpen_rtrv(u8_t *p_param)
       
       /*int to string (true|false|failure)*/
       if(0 == tmp)
+      {
           sprintf((char *)p_param, "%s\r\n", "off");
-      
+          g_sParameters.PtpModeParameters.ntp_en = tmp;
+          g_sParameters.PtpModeParameters.protocol = tmp;
+      }
       else if(1 == tmp)
+      {
           sprintf((char *)p_param, "%s\r\n", "on");
-      
+          g_sParameters.PtpModeParameters.ntp_en = tmp;
+          g_sParameters.PtpModeParameters.protocol = tmp;
+      }
       else
       {
           sprintf((char *)p_param, "%s\r\n", "failure");
@@ -1957,10 +2020,16 @@ static u8_t  ptp_steptype_rtrv(u8_t *p_param)
       }
       
       if(0 == tmp)
+      {
           sprintf((char *)p_param, "%s\r\n", "off");
+          g_sParameters.PtpModeParameters.step_type = tmp;
+      }
       
       else if(1 == tmp)
+      {
           sprintf((char *)p_param, "%s\r\n", "on");
+          g_sParameters.PtpModeParameters.step_type = tmp;
+      }
       
       else
       {           
@@ -2026,7 +2095,7 @@ static u8_t  ptp_clockquality_rtrv(u8_t *p_param)
       }
       clock_variance <<= 8;
       clock_variance |= tmp;
-      
+    
       sprintf((char *)p_param, "%02x,%02x,%04x\r\n", clock_class, clock_accuracy, clock_variance);
       
       /*print string into serial*/
@@ -2070,6 +2139,8 @@ static u8_t  ptp_priority_rtrv(u8_t *p_param)
       
       priority2 = tmp;
       
+      g_sParameters.PtpModeParameters.priority1 = priority1;
+      g_sParameters.PtpModeParameters.priority2 = priority2;
       sprintf((char *)p_param, "%d,%d\r\n", priority1, priority2);
       
       /*print string into serial*/
@@ -2189,10 +2260,16 @@ static u8_t  ptp_timeformat_rtrv(u8_t *p_param)
        }
       
       if(0 == tmp)
+      {
           sprintf((char *)p_param, "%s\r\n", "arb");
+          g_sParameters.PtpModeParameters.flag_time_scale = tmp;
+      }
       
       else if(1 == tmp)
+      {
           sprintf((char *)p_param, "%s\r\n", "ptp");
+          g_sParameters.PtpModeParameters.flag_time_scale = tmp;
+      }
       
       else
       {           
@@ -2229,7 +2306,7 @@ static u8_t  ptp_leap59flag_rtrv(u8_t *p_param)
               MTFS30_ERROR("spi read_address:%#x,value:%#x", PTP_FLAG_LEAP59_REG_ADDR, tmp);
               return NG;
        }
-      
+       g_sParameters.PtpModeParameters.flag_leap59 = tmp;
        sprintf((char *)p_param, "%d\r\n", tmp);
       /*print string into serial*/
       return OK;
@@ -2258,7 +2335,7 @@ static u8_t  ptp_leap61flag_rtrv(u8_t *p_param)
               MTFS30_ERROR("spi read_address:%#x,value:%#x", PTP_FLAG_LEAP61_REG_ADDR, tmp);
               return NG;
        }
-      
+       g_sParameters.PtpModeParameters.flag_leap61 = tmp;
        sprintf((char *)p_param, "%d\r\n", tmp);
       /*print string into serial*/
       return OK;
@@ -2297,6 +2374,8 @@ static u8_t  ptp_utcoffset_rtrv(u8_t *p_param)
       }
       utc_offset <<= 8;
       utc_offset |= tmp;
+      
+      g_sParameters.PtpModeParameters.utc_offset = utc_offset;
        sprintf((char *)p_param, "%d\r\n", utc_offset);
       /*print string into serial*/
       return OK;
@@ -2329,10 +2408,16 @@ static u8_t  ptp_esmcen_rtrv(u8_t *p_param)
       }
       
       if(0 == tmp)
+      {
           sprintf((char *)p_param, "%s\r\n", "off");
+          g_sParameters.PtpModeParameters.esmc_enable = tmp;
+      }
       
       else if(1 == tmp)
+      {
           sprintf((char *)p_param, "%s\r\n", "on");
+          g_sParameters.PtpModeParameters.esmc_enable = tmp;
+      }
       
       else
       {           
@@ -2370,7 +2455,7 @@ static u8_t  ptp_esmcssm_rtrv(u8_t *p_param)
               return NG;
       }
       
-      
+      g_sParameters.PtpModeParameters.esmc_ssm = tmp;
      sprintf((char *)p_param, "%02x\r\n", tmp);
           
       /*print string into serial*/
@@ -2892,10 +2977,16 @@ static u8_t  ptp_ntpen_set(u8_t *p_param, tConfigParameters *p_sParameters)
       } 
       
       if(strncmp((char const*)p_param, "off", strlen("off")) == 0 )
+      {
           p_sParameters->PtpModeParameters.protocol = tmp = 0;
+          g_sParameters.PtpModeParameters.ntp_en = tmp;
+      }
         
-      else if(strncmp((char const*)p_param, "on", strlen("on")) == 0 )      
+      else if(strncmp((char const*)p_param, "on", strlen("on")) == 0 ) 
+      {
           p_sParameters->PtpModeParameters.protocol = tmp = 1;
+          g_sParameters.PtpModeParameters.ntp_en = tmp;
+      }
       
       else
       {

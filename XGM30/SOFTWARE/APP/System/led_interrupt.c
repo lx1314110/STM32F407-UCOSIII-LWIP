@@ -110,7 +110,6 @@ static void extInt9_gpio_initial(void)
 {
    GPIO_InitTypeDef GPIO_InitStructure;                 //定义结构体
    
-   
    RCC_AHB1PeriphClockCmd(PULSE_EXTI_CLOCK, ENABLE);    //使能时钟
    GPIO_InitStructure.GPIO_Pin  = PULSE_INPUT_PIN;
    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;         //设置成上拉输入

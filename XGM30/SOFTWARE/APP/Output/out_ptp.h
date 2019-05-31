@@ -132,7 +132,6 @@
 #define PTP_QULITY_SPLIT_NUM      2
 #define PTP_PRIORITY_SPLIT_NUM    1
 
-
 /**********************************
 * function define                      
 ***********************************/
@@ -140,4 +139,5 @@ u8_t ptp_set_handler(int num,...);
 u8_t ptp_ipconfig_handler(int num,...);
 u8_t ptp_ifconfig_handler(int num,...);
 extern unsigned char StringtoInt( char* s );
+
 #endif

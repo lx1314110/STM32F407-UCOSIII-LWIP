@@ -149,7 +149,7 @@ typedef struct
     //
     //! The identifier for vlan, 12bit 0 1 0xfff reserved, 4093 use.
     //
-    unsigned short valn_vid;        //4
+    unsigned short vlan_vid;        //4
 }
 tPtpNetParameters;
 
@@ -241,6 +241,36 @@ typedef struct
 }
 tPtpModeParameters;
 
+
+typedef struct
+{
+    //
+    //! The port for ptp module.
+    //
+    unsigned char port;           //1
+
+    //
+    //! the delay compensation for irigb , pps tod, ppx.
+    //
+    signed long delay_irigb_com;
+    signed long delay_pps_tod_com;
+    
+    unsigned char signal_type;
+    unsigned char pps_status;
+    unsigned char tod_jitter;
+    unsigned char tod_clock_type;
+    unsigned short tod_clock_status;
+    unsigned short tod_moni_alarm;
+    //
+    //! irigb leap 59 |leap 61 flag.
+    //
+    unsigned char time_zone;
+    unsigned char flag_leappre:2;    /* leap59 */
+    unsigned char daylight_pre:2;    /* leap61 */
+    unsigned char clock_quality:4;               /*reserved*/
+    
+}
+tPPXIRIGBParameters;
 
 //*****************************************************************************
 //
@@ -457,6 +487,11 @@ typedef struct
     //!PTP mode parameters.
     //
     tOutParameters OutParameters;
+    
+    //
+    //!ppx irigb paramters
+    //
+    tPPXIRIGBParameters outPPXIRIGBParameters;
     
 }
 tConfigParameters;

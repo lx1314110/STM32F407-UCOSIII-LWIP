@@ -13,6 +13,11 @@
 //#include "Control/control.h"
 #include "Eeprom/eeprom.h"
 #include "Debug/mtfs30_debug.h"
+#include "Output/out_ptp.h"
+#include "Debug/user_cmd.h"
+#include "Gnss/gnss_receiver.h"
+
+
 
 #include <string.h>
 #include <stdlib.h>
@@ -24,7 +29,7 @@
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 unsigned char HostAddr[4];
 unsigned char MACAddress[6];
-
+extern const char *p_frequcy[PTP_MESSAGE_FRE_NUM];
 //*****************************************************************************
 //
 //! A local flag indicating that a firmware update has been requested via the
@@ -257,11 +262,27 @@ static const char* g_pcConfigSSITags[] =
 
 //*****************************************************************************
 //
-//! Prototype for the function which handles requests for serial.cgi.
+//! Prototype for the function which handles requests for gnss.cgi.
 //
 //*****************************************************************************
 static const char*
 ConfigGnssHandler( int iIndex, int iNumParams, char* pcParam[], char* pcValue[] );
+
+//*****************************************************************************
+//
+//! Prototype for the function which handles requests for pnet.cgi.
+//
+//*****************************************************************************
+static const char*
+ConfigPtpNetHandler( int iIndex, int iNumParams, char* pcParam[], char* pcValue[] );
+
+//*****************************************************************************
+//
+//! Prototype for the function which handles requests for pnet.cgi.
+//
+//*****************************************************************************
+static const char*
+ConfigPtpModHandler( int iIndex, int iNumParams, char* pcParam[], char* pcValue[] );
 //*****************************************************************************
 //
 //! Prototype for the function which handles requests for config.cgi.
@@ -359,8 +380,8 @@ static const tCGI g_psConfigCGIURIs[] =
 {
     { "/login.cgi", LoginCGIHandler },              // CGI_INDEX_Login
     { "/gnss.cgi", ConfigGnssHandler },           // CGI_INDEX_CONFIG
-    { "/thresh.cgi", Config2CGIHandler1 },            // CGI_INDEX_CONFIG
-    { "/ip.cgi", ConfigIPCGIHandler },              // CGI_INDEX_IP
+    { "/pnet.cgi", ConfigPtpNetHandler },            // CGI_INDEX_CONFIG
+    { "/pmod.cgi", ConfigPtpModHandler },              // CGI_INDEX_IP
     { "/sntp.cgi", SNTPCGIHandler },            // CGI_INDEX_CONFIG
     { "/trap.cgi", ConfigTrapCGIHandler },          // CGI_INDEX_MISC
     { "/sw.cgi", ConfigSwitchCGIHandler },      // CGI_INDEX_UPDATE
@@ -693,7 +714,7 @@ static const tConfigParameters g_sParametersFactory =
     /*ptp net mac address,ip address, subnet mask, gateway, vlan enable, vlan priority code point, 
       canonical format indicate,vlan identifier*/
     {
-      {0x00, 0x04, 0x76, 0x72, 0xb6, 0x62},
+      {0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
       0xac1205fe,
       0xffffff00,
       0xac120501,
@@ -2108,6 +2129,79 @@ ConfigGetCGIIPAddr( const char* pcName, char* pcParam[], char* pcValue[],
         return( ulIPAddr );
     }
 }
+
+//*****************************************************************************
+//
+//! \internal
+//!
+//! Searches the list of parameters passed to a CGI handler for 4 parameters
+//! representing an IP address and extracts the IP address defined by them.
+//!
+//! \param pcName is a pointer to a string containing the base name of the IP
+//! address parameters.
+//! \param pcParam is an array of character pointers, each containing the name
+//! of a single parameter as encoded in the URI requesting the CGI.
+//! \param iNumParams is the number of elements in the pcParam array.
+//! \param pcValues is an array of values associated with each parameter from
+//! the pcParam array.
+//! \param pbError is a pointer that will be written to \b true if there is any
+//! error during the parameter parsing process (parameter not found, value is
+//! not a valid decimal number).
+//!
+//! This function searches an array of parameters to find four parameters
+//! whose names are \e pcName appended with digits 1 - 4.  Each of these
+//! parameters is expected to have a value which is a decimal number between
+//! 0 and 255.  The parameter values are read and concatenated into an unsigned
+//! long representing an IP address with parameter 1 in the leftmost postion.
+//!
+//! For example, if \e pcName points to string ``ip'', the function will look
+//! for 4 CGI parameters named ``ip1'', ``ip2'', ``ip3'' and ``ip4'' and read
+//! their values to generate an IP address of the form 0xAABBCCDD where ``AA''
+//! is the value of parameter ``ip1'', ``BB'' is the value of ``p2'', ``CC''
+//! is the value of ``ip3'' and ``DD'' is the value of ``ip4''.
+//!
+//! \return Returns the IP address read or 0 if an error is detected (in
+//! which case \e *pbError will be \b true).
+//
+//*****************************************************************************
+unsigned long
+ConfigGetCGIDeciIPAddr( const char* pcName, char* pcParam[], char* pcValue[],
+                    int iNumParams, tBoolean* pbError )
+{
+    struct ip_addr IPAddr;
+    unsigned long ulIPAddr;
+    int iParam;
+    char pcVariable[MAX_VARIABLE_NAME_LEN];
+    tBoolean bError;
+    //
+    // Set up for the loop which reads each address element.
+    //
+    ulIPAddr = 0;
+    bError = false;
+    
+    
+    iParam = ConfigFindCGIParameter( pcName, pcParam, iNumParams );
+    if( iParam != -1 )
+    {
+        ConfigDecodeFormString( pcValue[iParam],
+                                pcVariable,
+                                MAX_VARIABLE_NAME_LEN );
+    }
+    else
+       bError = true;
+    
+    IPAddr.addr = inet_addr( ( char* )pcVariable );
+    if( IPAddr.addr == INADDR_NONE || bError == true )
+    {
+      *pbError = true;
+        return( 0 );
+    }
+    else
+    {
+        ulIPAddr = htonl( IPAddr.addr );
+        return ulIPAddr;
+    }
+}
 //
 //! String into an integer
 //
@@ -2470,7 +2564,7 @@ ConfigGnssHandler( int iIndex, int iNumParams, char* pcParam[], char* pcValue[] 
     unsigned char gnss_mode = 0;        //gnss work mode temp val.
     //unsigned char gnss_prio[4];   //gnss priority temp val.
     long gnss_dlycom = 0;             //gnss delay compensation temp val.
-    
+    unsigned char command[COMM_MAX_LEN];
     //
     // We have not encountered any parameter errors yet.
     //
@@ -2503,7 +2597,7 @@ ConfigGnssHandler( int iIndex, int iNumParams, char* pcParam[], char* pcValue[] 
     }
  
     //
-    // the remote cgi command of the Channel four .
+    // the remote cgi command of dlycom .
     //
     gnss_dlycom = ( long )ConfigGetCGIParam( "dlycom", pcParam,
                    pcValue,
@@ -2541,11 +2635,311 @@ ConfigGnssHandler( int iIndex, int iNumParams, char* pcParam[], char* pcValue[] 
         g_sParameters.GnssParameters.mode = gnss_mode;
         g_sParameters.GnssParameters.delaycom = gnss_dlycom;
         g_sWorkingDefaultParameters = g_sParameters;
+        sprintf(command, "gnss d c %d\n", gnss_dlycom);
+        user_cmd_parser(command);
         ConfigSave();
         return( SET_CGI_RESPONSE);
     }
    
     
+}
+
+static const char*
+ConfigPtpNetHandler( int iIndex, int iNumParams, char* pcParam[], char* pcValue[] )
+{
+    //
+    //!temp varible zone.
+    //
+    tBoolean bParamError = false;
+    unsigned long ulIPAddr = 0;
+    unsigned long ulGatewayAddr = 0;
+    unsigned long ulSubnetMask = 0;
+    unsigned char  ulMACAddr[6] = {0};
+    unsigned char bVlanEnable = 0;
+    unsigned char bVlanPcp = 0;
+    unsigned char bVlanCfi = 0;
+    unsigned short bVlanVid = 0;
+    unsigned char command[COMM_MAX_LEN];
+    //
+    // get the mac address of ptp module.
+    //
+//#if 0
+    bParamError = ConfigGetCGIMacaddr( "mac", iNumParams, pcParam, pcValue, ( char* )ulMACAddr, MAX_MACSTRING_LEN );
+    //
+    // the remote cgi command of the ptp network .
+    //
+    if(!bParamError)
+//#endif    
+      ulIPAddr = ConfigGetCGIDeciIPAddr( "ip", pcParam, pcValue, iNumParams, &bParamError );
+    
+    if(!bParamError)
+        ulSubnetMask = ConfigGetCGIDeciIPAddr( "mask", pcParam, pcValue, iNumParams, &bParamError );
+    
+    if(!bParamError)
+        ulGatewayAddr = ConfigGetCGIDeciIPAddr( "gw", pcParam, pcValue, iNumParams, &bParamError );
+    //
+    // the vlan enable and priority, cfi,vid setting.
+    //
+    if(!bParamError)
+        bVlanEnable =  ConfigGetCGIParam( "ven", pcParam, pcValue, iNumParams, &bParamError );
+    
+    if(!bParamError)
+        bVlanPcp =  ConfigGetCGIParam( "pcp", pcParam, pcValue, iNumParams, &bParamError );
+    
+    if(!bParamError)
+        bVlanCfi =  ConfigGetCGIParam( "cfi", pcParam, pcValue, iNumParams, &bParamError );
+    
+    if(!bParamError)
+        bVlanVid =  ConfigGetCGIParam( "vid", pcParam, pcValue, iNumParams, &bParamError );
+
+    //
+    // We have now read all the parameters and made sure that they are valid
+    // decimal numbers.  Did we see any errors during this process?
+    //
+    if( bParamError )
+    {
+        //
+        // Yes - tell the user there was an error.
+        //
+        return( PARAM_ERROR_RESPONSE );
+    }
+    else
+    {
+        //
+        // if check network changed.
+        //
+        if(g_sParameters.PtpNetParameters.ptp_ipaddr != ulIPAddr || g_sParameters.PtpNetParameters.ptp_submask != ulSubnetMask
+           || g_sParameters.PtpNetParameters.ptp_gateway != ulGatewayAddr)
+        {
+            g_sParameters.PtpNetParameters.ptp_ipaddr = ulIPAddr;
+            g_sParameters.PtpNetParameters.ptp_submask = ulSubnetMask;
+            g_sParameters.PtpNetParameters.ptp_gateway = ulGatewayAddr;  
+            
+            //
+            //execute the spi command
+            sprintf(command, "ipconfig -a %d.%d.%d.%d\n", ((ulIPAddr >> 24) &0xff),
+                                                          ((ulIPAddr >> 16) &0xff),
+                                                          ((ulIPAddr >> 8) &0xff),
+                                                          (ulIPAddr  &0xff));
+            user_cmd_parser(command);
+            
+            //
+            //
+            sprintf(command, "ipconfig -m %d.%d.%d.%d\n", ((ulSubnetMask >> 24) &0xff),
+                                                          ((ulSubnetMask >> 16) &0xff),
+                                                          ((ulSubnetMask >> 8) &0xff),
+                                                          (ulSubnetMask  &0xff));
+            user_cmd_parser(command);
+            
+            //
+            //
+            sprintf(command, "ipconfig -g %d.%d.%d.%d\n", ((ulGatewayAddr >> 24) &0xff),
+                                                          ((ulGatewayAddr >> 16) &0xff),
+                                                          ((ulGatewayAddr >> 8) &0xff),
+                                                          (ulGatewayAddr  &0xff));
+            user_cmd_parser(command);
+            
+        }
+        
+        g_sParameters.PtpNetParameters.vlan_enable = bVlanEnable;
+        
+        
+        g_sParameters.PtpNetParameters.vlan_pcp = bVlanPcp;
+        g_sParameters.PtpNetParameters.vlan_cfi = bVlanCfi;
+        g_sParameters.PtpNetParameters.vlan_vid = bVlanVid;
+        //
+        //
+        sprintf(command, "ifconfig vlan -e %s\n", bVlanEnable ? "on" : "off");
+        user_cmd_parser(command);
+        //
+        //
+        sprintf(command, "ifconfig vlan -p %d\n", bVlanPcp);
+        user_cmd_parser(command);
+        //
+        //
+        sprintf(command, "ifconfig vlan -c %d\n", bVlanCfi);
+        user_cmd_parser(command);
+        //
+        //
+        sprintf(command, "ifconfig vlan -v %d\n", bVlanVid);
+        user_cmd_parser(command);
+        //
+        g_sWorkingDefaultParameters = g_sParameters;
+        
+        ConfigSave();
+        
+        return( SET_CGI_RESPONSE);
+    }
+}
+
+
+static const char*
+ConfigPtpModHandler( int iIndex, int iNumParams, char* pcParam[], char* pcValue[] )
+{
+    //
+    //!temp varible zone.
+    //
+    tBoolean bParamError = false;
+    tBoolean ptp_en = false;
+    tBoolean esmc_en = false;
+    tBoolean dly_type = false;
+    tBoolean unicast = false;
+    tBoolean enpack_en = false;
+    tBoolean step_type = false;
+    tBoolean ntp_en = false;
+    unsigned char sync_fre = 0;
+    unsigned char anounce_fre = 0;
+    unsigned char clock_domain = 0;
+    unsigned char priority1 = 0;
+    unsigned char priority2 = 0;
+    unsigned char change_flag[COMM_MAX_LEN] = {0};
+    
+    unsigned char command[COMM_MAX_LEN];
+    //
+    // get the mac address of ptp module.
+    //
+     ptp_en = ConfigGetCGIParam( "en", pcParam, pcValue, iNumParams, &bParamError );
+    
+    if(!bParamError)
+        esmc_en = ConfigGetCGIParam( "esmcen", pcParam, pcValue, iNumParams, &bParamError );
+    
+    if(!bParamError)
+        dly_type = ConfigGetCGIParam( "dlytype", pcParam, pcValue, iNumParams, &bParamError );
+    //
+    // the vlan enable and priority, cfi,vid setting.
+    //
+    if(!bParamError)
+        unicast =  ConfigGetCGIParam( "unicast", pcParam, pcValue, iNumParams, &bParamError );
+    
+    if(!bParamError)
+        enpack_en =  ConfigGetCGIParam( "enp", pcParam, pcValue, iNumParams, &bParamError );
+    
+    if(!bParamError)
+        step_type =  ConfigGetCGIParam( "step", pcParam, pcValue, iNumParams, &bParamError );
+    
+    if(!bParamError)
+        sync_fre =  ConfigGetCGIParam( "sync", pcParam, pcValue, iNumParams, &bParamError );
+
+    if(!bParamError)
+        anounce_fre =  ConfigGetCGIParam( "anounce", pcParam, pcValue, iNumParams, &bParamError );
+    
+    if(!bParamError)
+        clock_domain =(unsigned char) ConfigGetCGIParam( "domain", pcParam, pcValue, iNumParams, &bParamError );
+    
+    if(!bParamError)
+        ntp_en = ConfigGetCGIParam( "outype", pcParam, pcValue, iNumParams, &bParamError );
+     
+    if(!bParamError)
+        priority1 = (unsigned char)ConfigGetCGIParam( "prio1", pcParam, pcValue, iNumParams, &bParamError );
+    
+    if(!bParamError)
+        priority2 = (unsigned char)ConfigGetCGIParam( "prio2", pcParam, pcValue, iNumParams, &bParamError );
+    //
+    // We have now read all the parameters and made sure that they are valid
+    // decimal numbers.  Did we see any errors during this process?
+    //
+    if( bParamError )
+    {
+        //
+        // Yes - tell the user there was an error.
+        //
+        return( PARAM_ERROR_RESPONSE );
+    }
+    else
+    {
+        //
+        // if check network changed.
+        //
+        if(g_sParameters.PtpModeParameters.port_enable != ptp_en)
+        {
+            g_sParameters.PtpModeParameters.port_enable = ptp_en;
+            sprintf(command, "ptp2 p e %s\n", ptp_en? "on" : "off");
+            user_cmd_parser(command);
+        }
+        
+        if(g_sParameters.PtpModeParameters.esmc_enable != esmc_en)
+        {
+            g_sParameters.PtpModeParameters.esmc_enable = esmc_en;
+            sprintf(command, "ptp2 e e %s\n", esmc_en? "on" : "off");
+            user_cmd_parser(command);
+        }
+        
+        if(g_sParameters.PtpModeParameters.delay_type != dly_type)
+        {
+            g_sParameters.PtpModeParameters.delay_type = dly_type;
+            sprintf(command, "ptp2 p m %s\n", dly_type? "p2p" : "e2e");
+            user_cmd_parser(command);
+        }
+        
+        if(g_sParameters.PtpModeParameters.unicast != unicast)
+        {
+            g_sParameters.PtpModeParameters.unicast = unicast;
+            sprintf(command, "ptp2 p u %s\n", unicast? "enable" : "disable");
+            user_cmd_parser(command);
+        }
+        
+        if(g_sParameters.PtpModeParameters.encode_package != enpack_en)
+        {
+            g_sParameters.PtpModeParameters.encode_package = enpack_en;
+            sprintf(command, "ptp2 p p %s\n", enpack_en? "udp" : "eth");
+            user_cmd_parser(command);
+        }
+        
+        if(g_sParameters.PtpModeParameters.step_type != step_type)
+        {
+            g_sParameters.PtpModeParameters.step_type = step_type;
+            sprintf(command, "ptp2 c t %s\n", step_type? "on" : "off");
+            user_cmd_parser(command);
+        }
+        
+        if(g_sParameters.PtpModeParameters.sync_frequency != sync_fre)
+        {
+            g_sParameters.PtpModeParameters.sync_frequency = sync_fre;
+            sprintf(command, "ptp2 p si %s\n", p_frequcy[sync_fre]);
+            user_cmd_parser(command);
+        }
+        
+        if(g_sParameters.PtpModeParameters.anounce_frequency != anounce_fre)
+        {
+            g_sParameters.PtpModeParameters.anounce_frequency = anounce_fre;
+            sprintf(command, "ptp2 p ai %s\n", p_frequcy[anounce_fre]);
+            user_cmd_parser(command);
+        }
+        
+        if(g_sParameters.PtpModeParameters.domain != clock_domain)
+        {
+            g_sParameters.PtpModeParameters.domain = clock_domain;
+            sprintf(command, "ptp2 c d %d\n", clock_domain);
+            user_cmd_parser(command);
+        }
+        
+        if(g_sParameters.PtpModeParameters.ntp_en != ntp_en)
+        {
+            g_sParameters.PtpModeParameters.ntp_en = ntp_en;
+            sprintf(command, "ptp2 p n %s\n", ntp_en? "on" : "off");
+            user_cmd_parser(command);
+        }
+        
+        if(g_sParameters.PtpModeParameters.priority1 != priority1)
+        {
+            g_sParameters.PtpModeParameters.priority1 = priority1;
+            sprintf(command, "ptp2 c p 1 %d\n", priority1);
+            user_cmd_parser(command);
+        }
+        
+        if(g_sParameters.PtpModeParameters.priority2 != priority2)
+        {
+            g_sParameters.PtpModeParameters.priority2 = priority2;
+            sprintf(command, "ptp2 c p 2 %d\n", priority2);
+            user_cmd_parser(command);
+        }
+        //
+        g_sWorkingDefaultParameters = g_sParameters;
+        
+        ConfigSave();
+        
+        return( SET_CGI_RESPONSE);
+    }
 }
 static const char*
 SNTPCGIHandler( int iIndex, int iNumParams, char* pcParam[], char* pcValue[] )
@@ -3601,7 +3995,7 @@ void get_gnss_info(unsigned char *type, char startch, unsigned char *endstr, uns
         p1 = p;
         while(p1--)
         {
-          if(p1 == &buf[0])
+          if(p1 == (char *)&buf[0])
               break;
           
           if(*p1 == startch )
@@ -3625,7 +4019,7 @@ void get_gnss_info(unsigned char *type, char startch, unsigned char *endstr, uns
         {
            
            *p = '\0';
-           strncpy((char*)tmp, buf, strlen(buf));
+           strncpy((char*)tmp, buf, strlen((const char *)buf));
         }
         else
            memset(tmp, '\0', sizeof(tmp));
@@ -3726,7 +4120,7 @@ void split1_gnss_info(unsigned char *type, char* startstr, char endch,
        
        if(ok_flag)
        {
-         strncpy(tmp, p, p1 - p);
+         strncpy((char *)tmp, p, p1 - p);
          tmp[p-p1] = '\0';
        }
        else
@@ -3764,7 +4158,7 @@ ConfigSSIHandler( int iIndex, char* pcInsert, int iInsertLen )
     //unsigned long ulPort;
     int iCount;
     unsigned char tmp_buf[GNSS_STATELLITE_INFO_LEN];
- 
+    //unsigned char command[COMM_MAX_LEN];
     //
     // Which SSI tag are we being asked to provide content for?
     //
@@ -3775,6 +4169,9 @@ ConfigSSIHandler( int iIndex, char* pcInsert, int iInsertLen )
         //
        case SSI_INDEX_GNSSVARS:
        {
+ 
+        //
+        //! ssi tag insert.
         iCount = usnprintf( pcInsert, iInsertLen, "%s", JAVASCRIPT_HEADER );
               if( iCount < iInsertLen )
               {
@@ -3797,15 +4194,24 @@ ConfigSSIHandler( int iIndex, char* pcInsert, int iInsertLen )
        // 
        case SSI_INDEX_PTPNETVARS:
        {
+         
+         //
+         //! call the application before ssi.
+        
+        user_cmd_parser("ifconfig vlan -e\n");
+        user_cmd_parser("ifconfig vlan -c\n");
+        user_cmd_parser("ifconfig vlan -p\n");
+        
+        //
+        //! insert tag .
         iCount = usnprintf( pcInsert, iInsertLen, "%s", JAVASCRIPT_HEADER );
               if( iCount < iInsertLen )
               {
                   iCount += usnprintf( pcInsert + iCount, iInsertLen - iCount,
                                        NET_JAVASCRIPT_VARS,
                                        g_sParameters.PtpNetParameters.vlan_enable,
-                                       g_sParameters.PtpNetParameters.vlan_cfi,
-                                       g_sParameters.PtpNetParameters.vlan_pcp
-                                     );
+                                       g_sParameters.PtpNetParameters.vlan_pcp,
+                                       g_sParameters.PtpNetParameters.vlan_cfi);
               }
               if( iCount < iInsertLen )
               {
@@ -3820,7 +4226,21 @@ ConfigSSIHandler( int iIndex, char* pcInsert, int iInsertLen )
        //      
        case SSI_INDEX_PTPMODEVARS:
        {
-        iCount = usnprintf( pcInsert, iInsertLen, "%s", JAVASCRIPT_HEADER );
+         
+               //
+               //! call the application before ssi.
+              user_cmd_parser("ptp2 p e\n");
+              user_cmd_parser("ptp2 e e\n");
+              user_cmd_parser("ptp2 p m\n");
+              user_cmd_parser("ptp2 p u\n");
+              user_cmd_parser("ptp2 p p\n");
+              user_cmd_parser("ptp2 c t\n");
+              user_cmd_parser("ptp2 p si\n");
+              user_cmd_parser("ptp2 p ai\n");
+              user_cmd_parser("ptp2 p n\n");
+              
+              
+              iCount = usnprintf( pcInsert, iInsertLen, "%s", JAVASCRIPT_HEADER );
               if( iCount < iInsertLen )
               {
                   iCount += usnprintf( pcInsert + iCount, iInsertLen - iCount,
@@ -3849,7 +4269,7 @@ ConfigSSIHandler( int iIndex, char* pcInsert, int iInsertLen )
        //      
        case SSI_INDEX_OUTVARS:
        {
-        iCount = usnprintf( pcInsert, iInsertLen, "%s", JAVASCRIPT_HEADER );
+              iCount = usnprintf( pcInsert, iInsertLen, "%s", JAVASCRIPT_HEADER );
               if( iCount < iInsertLen )
               {
                   iCount += usnprintf( pcInsert + iCount, iInsertLen - iCount,
@@ -3895,6 +4315,11 @@ ConfigSSIHandler( int iIndex, char* pcInsert, int iInsertLen )
         //
         case SSI_INDEX_GNSSDLYCOM:
         {
+           //
+           //call pps delay compensation.
+            user_cmd_parser("gnss d c\n");
+            
+            
             iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='dlycom' style='width:152' value='" );
             if( iCount < iInsertLen )
             {
@@ -3922,7 +4347,12 @@ ConfigSSIHandler( int iIndex, char* pcInsert, int iInsertLen )
         case SSI_INDEX_PTPMAC:
         {
             
-            iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='mac' style='width:152' disabled='true' value='" );
+            //
+            //call application before insert tag.
+            user_cmd_parser("ipconfig -s\n");
+            
+            
+            iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='mac' style='width:152' disabled='disable' value='" );
             if( iCount < iInsertLen )
             {
 
@@ -3949,6 +4379,11 @@ ConfigSSIHandler( int iIndex, char* pcInsert, int iInsertLen )
         //
         case SSI_INDEX_PTPIP:
         {
+            
+            //
+            //call the ip address inquery.
+            //
+            user_cmd_parser("ipconfig -a\n");
             
             iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='ip' style='width:152' value='" );
             if( iCount < iInsertLen )
@@ -3977,6 +4412,11 @@ ConfigSSIHandler( int iIndex, char* pcInsert, int iInsertLen )
         case SSI_INDEX_PTPMASK:
         {
             
+            //
+            //call the netmask inquery.
+            //
+            user_cmd_parser("ipconfig -m\n");
+            
             iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='mask' style='width:152' value='" );
             if( iCount < iInsertLen )
             {
@@ -4004,6 +4444,10 @@ ConfigSSIHandler( int iIndex, char* pcInsert, int iInsertLen )
         //
         case SSI_INDEX_PTPGW:
         {
+            //
+            //call the gateway inquery.
+            //
+            user_cmd_parser("ipconfig -g\n");
             
             iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='gw' style='width:152' value='" );
             if( iCount < iInsertLen )
@@ -4032,6 +4476,10 @@ ConfigSSIHandler( int iIndex, char* pcInsert, int iInsertLen )
         //
         case SSI_INDEX_PTPVID:
         {
+            //
+            //call the inquery.
+            //
+            user_cmd_parser("ifconfig vlan -v\n");
             
             iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='vid' style='width:152' value='" );
             if( iCount < iInsertLen )
@@ -4039,7 +4487,7 @@ ConfigSSIHandler( int iIndex, char* pcInsert, int iInsertLen )
 
                 iCount +=
                   usnprintf( pcInsert + iCount, iInsertLen - iCount, "%d",
-                                              g_sParameters.PtpNetParameters.valn_vid
+                                              g_sParameters.PtpNetParameters.vlan_vid
                                      );
             }
             if( iCount < iInsertLen )
@@ -4108,6 +4556,11 @@ ConfigSSIHandler( int iIndex, char* pcInsert, int iInsertLen )
         case SSI_INDEX_PTPDOMAIN:
         {
             
+            //
+            //call the inquery.
+            //
+            user_cmd_parser("ptp2 c d\n");
+            
             iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='domain' style='width:152' value='" );
             if( iCount < iInsertLen )
             {
@@ -4157,6 +4610,10 @@ ConfigSSIHandler( int iIndex, char* pcInsert, int iInsertLen )
         //
         case SSI_INDEX_PTPPRIO1:
         {
+            //
+            //call the inquery.
+            //
+            user_cmd_parser("ptp2 c p\n");
             
             iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='prio1' style='width:152' value='" );
             if( iCount < iInsertLen )
@@ -4181,6 +4638,10 @@ ConfigSSIHandler( int iIndex, char* pcInsert, int iInsertLen )
         //
         case SSI_INDEX_PTPPRIO2:
         {
+            //
+            //call the inquery.
+            //
+            user_cmd_parser("ifconfig vlan -v\n");
             
             iCount = usnprintf( pcInsert, iInsertLen, "<input class='text_time' name='prio2' style='width:152' value='" );
             if( iCount < iInsertLen )
